@@ -1651,6 +1651,7 @@ function viewRewards(v){
       ${done&&!r.given?`<span style="font-size:13px"><b>Show this to your parent to claim it.</b></span>`:""}</div>`; }).join("")}</div>`
     :`<p class="muted" style="margin:8px 0 0">A parent can set real prizes for milestones, like "Reach level 5: KFC lunch" or "30-day streak: new football boots". They can set them on their own phone and send them to you, or here with a PIN.</p>`}
     <button class="btn ghost block" id="sendProg" style="margin-top:10px">Send my progress to my parent</button><div id="progBox" hidden style="margin-top:8px"></div>
+    ${pasteBox("pasteRew","Got a rewards link from your parent? Paste it here")}
   </div>
 
   <div class="card"><span class="eyebrow">Shop</span>
@@ -1671,6 +1672,7 @@ function viewRewards(v){
     ${BADGES.map(b=>`<div class="badge ${S.badges[b.id]?"got":""}"><div class="medal">${esc(b.m)}</div><b>${esc(b.n)}</b><span>${esc(b.d)}</span></div>`).join("")}</div></div>
   <button class="btn line block" id="toMe">My progress, mistakes and settings</button>`;
   $("#toMe").onclick = ()=>go("me");
+  bindPaste("pasteRew");
   $("#sendProg").onclick = ()=>shareLink("Ledger Up progress", `My Ledger Up progress (level ${levelOf(S.xp)}, ${liveStreak()}-day streak). Open it in your Ledger Up parent app:`, signed("progress", progressPayload()), "progBox");
   $("#parentBtn").onclick = ()=>parentGate();
   v.querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>{ S.shopTab=b.dataset.st; save(); render(); });
@@ -1753,6 +1755,8 @@ async function shareLink(title, text, url, boxId){
 }
 function goalLabel(r){ return `${GOALS[r.type]} ${r.target}`; }
 
+function pasteBox(id, label){ return `<div style="margin-top:12px"><label class="lab" for="${id}">${label}</label><div class="row" style="flex-wrap:nowrap"><input class="field" id="${id}" placeholder="Paste the link here" autocomplete="off"><button class="btn sm" id="${id}-go">Open</button></div></div>`; }
+function bindPaste(id){ const b=document.getElementById(id+"-go"); if(!b) return; b.onclick=()=>{ const v=document.getElementById(id).value.trim(); const i=v.indexOf("#"); if(i<0){ toast("That doesn't look like a Ledger Up link."); return; } location.hash = v.slice(i); }; }
 /* Son's phone: receive rewards from the parent */
 function handleRewardsLink(){
   if(COACH_MODE || S.role==="parent") return;
@@ -1800,6 +1804,7 @@ function viewParentHome(v){
     <span class="muted" style="font-size:12px">XP over the last 7 days (green = daily goal met)</span>
     ${kid.weak?.length?`<p style="margin:10px 0 0;font-size:14px"><b>Needs practice:</b> ${esc(kid.weak.join(", "))}</p>`:""}`
    :`<p class="muted" style="margin:6px 0 0">Nothing yet. On ${esc(kn)}'s phone: Rewards, then <b>Send my progress to my parent</b>. When you open that link here, the progress shows up.</p>`}
+   ${pasteBox("pasteProg","Got a progress link? Paste it here")}
   </div>
 
   <div class="card"><span class="eyebrow">Rewards</span>
@@ -1821,12 +1826,13 @@ function viewParentHome(v){
   <div class="card"><span class="eyebrow">Settings</span><div class="view" style="gap:8px;margin-top:8px">
     <div><label class="lab" for="pkn">Child's name</label><div class="row" style="flex-wrap:nowrap"><input class="field" id="pkn" value="${esc(S.kidName||"")}" maxlength="30"><button class="btn sm" id="pknS">Save</button></div></div>
     <div id="pSwitch"><button class="btn line sm" id="pStudent">Switch this phone to student mode</button></div></div></div>`;
+  bindPaste("pasteProg");
   $("#prf").onsubmit = e=>{ e.preventDefault(); const title=$("#prt").value.trim(); if(!title) return; pr.push({title, type:$("#prty").value, target:Math.max(1,parseInt($("#prn").value,10)||1), given:null}); save(); toast("Added. Remember to send it."); render(); };
   v.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ pr.splice(+b.dataset.del,1); save(); render(); });
   v.querySelectorAll("[data-given]").forEach(b=>b.onclick=()=>{ pr[+b.dataset.given].given=today(); save(); render(); });
   $("#pSend").onclick = ()=>{ if(!pr.length){ toast("Add a reward first."); return; }
     const url = signed("rewards", {r:pr.map(r=>({title:r.title,type:r.type,target:r.target,given:r.given})), at:today()});
-    shareLink("Ledger Up rewards", `${S.kidName||"Hi"}, here are your Ledger Up rewards! Open this on your phone:`, url, "pLinkBox"); };
+    shareLink("Ledger Up rewards", `${S.kidName||"Hi"}, here are your Ledger Up rewards! Tap the link. (iPhone: if it opens in Safari, copy it and paste it into Ledger Up, Rewards tab.)`, url, "pLinkBox"); };
   $("#pknS").onclick = ()=>{ S.kidName=$("#pkn").value.trim(); save(); render(); };
   $("#pStudent").onclick = ()=>{ $("#pSwitch").innerHTML = `<p style="margin:0 0 8px"><b>Use this phone for studying instead?</b> Your reward list stays saved.</p><div class="row"><button class="btn sm" id="psY">Yes, switch</button><button class="btn line sm" id="psN">Cancel</button></div>`;
     $("#psY").onclick=()=>{ S.role=null; S.name=""; save(); go("home"); }; $("#psN").onclick=()=>render(); };
