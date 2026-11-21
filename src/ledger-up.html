@@ -651,7 +651,7 @@ Syllabus topics in this app: ${TOPICS.map(t=>t.name).join("; ")}.`;
 function aiErr(e){
   const c = e?.code;
   if(c==="not_granted") return "Coach needs your OK to use Claude. Reload the page and choose Allow when asked.";
-  if(c==="rate_limited") return "Coach is taking a short break (too many questions too fast, or your Claude usage limit). Try again in a little while.";
+  if(c==="rate_limited") return "You've used up Coach's allowance for now. It refills in a few hours. Meanwhile, practise with quizzes, flashcards and the game in the Ledger Up app.";
   if(c==="session_expired") return "Please sign in to Claude again, then come back.";
   if(c==="sampling_disabled"||c==="unavailable") return STANDALONE ? "Coach needs the online version. Tap \"Open Coach online\" when you have internet." : "The AI coach isn't available here. Open this page in the Claude app or claude.ai while signed in.";
   if(c==="refused") return "Coach couldn't answer that one. Try asking it a different way.";
@@ -661,11 +661,11 @@ function aiErr(e){
 }
 function aiCall(input, opts={}){
   if(!AI) return Promise.reject({code:"unavailable"});
-  return AI(input, Object.assign({model:MODEL, modelTier:"default", effort:"low"}, opts));
+  return AI(input, Object.assign({modelTier:"default", effort:"low"}, opts));
 }
 function aiJSON(input, opts={}){
   if(!AI) return Promise.reject({code:"unavailable"});
-  return AI.json(input, Object.assign({model:MODEL, modelTier:"default", effort:"medium", cache:false}, opts));
+  return AI.json(input, Object.assign({modelTier:"default", effort:"low", cache:false}, opts));
 }
 
 /* =================== MARKDOWN =================== */
@@ -1032,6 +1032,7 @@ function viewTutor(v){
   </div>`;
   const log = $("#chatLog");
   chat.forEach(m=>log.insertAdjacentHTML("beforeend", bubble(m)));
+  if(chat.length >= 12 && !chatBusy) log.insertAdjacentHTML("beforeend", `<div class="banner">Tip: tap <b>New chat</b> when you move to a new question. Short chats make your Coach allowance last longer.</div>`);
   const inp = $("#cIn");
   inp.oninput = ()=>{ inp.style.height="auto"; inp.style.height=Math.min(140,inp.scrollHeight)+"px"; };
   inp.onkeydown = e=>{ if(e.key==="Enter" && !e.shiftKey && window.matchMedia("(pointer:fine)").matches){ e.preventDefault(); $("#cSend").click(); } };
@@ -1066,12 +1067,13 @@ async function sendChat(text){
   const log = $("#chatLog"); const node = log?.lastElementChild;
   window.scrollTo({top:document.body.scrollHeight, behavior:"smooth"});
   chatCtl = new AbortController();
-  const turns = chat.filter(m=>m!==aiMsg && !m.err && (m.role==="user" || m.content)).slice(-14).map(m=>({role:m.role, content: m.content + (m.img?"\n[The student attached a photo with this message.]":"")}));
+  const turns = chat.filter(m=>m!==aiMsg && !m.err && (m.role==="user" || m.content)).slice(-8).map(m=>({role:m.role, content: m.content + (m.img?"\n[The student attached a photo with this message.]":"")}));
   while(turns.length && turns[0].role!=="user") turns.shift();
   const ctx = RULES() + (chatTopic && TOPIC[chatTopic] ? `\n\nThe student is currently studying: ${TOPIC[chatTopic].name} (${TOPIC[chatTopic].short}).` : "") + (img? "\n\nIf a photo is attached, read it carefully. If it is the student's working, mark it line by line: what is right, the exact line that is wrong, why, and the correct version. If it is a past paper question, help them solve it step by step." : "");
   try{
     const opts = {signal:chatCtl.signal, cache:false, onText:({text})=>{ aiMsg.pending=false; aiMsg.content=text; const n=$("#chatLog")?.lastElementChild; if(n && tab==="tutor") n.querySelector(".md").innerHTML = md(text); }};
     if(img) opts.images = [img.file];
+    else if(text.length < 160 && turns.length <= 3 && !/solution|mark|check my|working|step by step|paper/i.test(text)) opts.modelTier = "quick";
     const r = await aiCall([{role:"user",content:ctx}, ...turns], opts);
     aiMsg.pending=false; aiMsg.content = r.text;
     S.n.tutor++; if(img){ S.n.photo++; }
