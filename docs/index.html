@@ -529,6 +529,7 @@ try{ const raw = localStorage.getItem(KEY); if(raw) S = Object.assign(DEF(), JSO
 let cloudDoc = null, saveT = null;
 function save(){
   try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){}
+  if(typeof syncSoon==="function") syncSoon();
   if(cloudDoc){ clearTimeout(saveT); saveT = setTimeout(()=>{ cloudDoc.set({state:JSON.stringify(S), xp:S.xp, at:Date.now()}).catch(()=>{}); }, 1500); }
 }
 async function initCloud(){
@@ -546,6 +547,143 @@ async function initCloud(){
     } else if(S.xp>0 || S.name) save();
   }catch(e){ /* stay on this device's copy */ }
 }
+
+/* =================== SYNC (PC + phone, same progress) ===================
+   A sync code links devices. The Worker stores one copy per code at /api/sync/<sha256>.
+   Merging is three-way (base = what this device last synced): counters such as XP, coins
+   and per-day XP add up what each device earned since then, records take the best,
+   collections are combined, settings take the newer change. */
+const SYNC_KEY = "ledgerup.sync.v1", SYNC_API = "/api/sync/";
+const SYNC_ABC = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const SYNC_LOCAL = ["role","shopTab","filter","hideInstall","kid","pRewards","kidName","pendXP","pendBase","claimId"];
+const SYNC_ADD = ["xp","coins","freezes"], SYNC_MAX = ["best"], SYNC_UNION = ["badges","owned","claimed","lessonDay"];
+let SY = null; try{ SY = JSON.parse(localStorage.getItem(SYNC_KEY)||"null"); }catch(e){}
+let syncBusy = false, syncAgain = false, syncT = null, syncErr = false;
+const syncOK = () => STANDALONE && S.role!=="parent" && /^https:$/.test(location.protocol) && !!(window.crypto && crypto.subtle);
+function sySave(){ try{ SY ? localStorage.setItem(SYNC_KEY, JSON.stringify(SY)) : localStorage.removeItem(SYNC_KEY); }catch(e){} }
+function syncable(o){ const c = JSON.parse(JSON.stringify(o)); SYNC_LOCAL.forEach(k=>delete c[k]); return c; }
+function newSyncCode(){ const a = new Uint32Array(12); crypto.getRandomValues(a); return [...a].map(x=>SYNC_ABC[x%SYNC_ABC.length]).join(""); }
+const normCode = c => String(c||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+const showCode = c => c.replace(/(.{4})(?=.)/g,"$1-");
+async function codeId(code){ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("ledgerup-sync|"+code)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
+
+function mergeState(B, L, R){
+  B = B||{}; const num = x => +x||0, same = (a,b) => JSON.stringify(a)===JSON.stringify(b);
+  const add = (b,l,r) => Math.max(0, Math.round(num(r) + num(l) - num(b)));
+  const pick = k => same(L[k], B[k]) ? (k in R ? R[k] : L[k]) : L[k];
+  const M = {};
+  new Set([...Object.keys(L), ...Object.keys(R)]).forEach(k => M[k] = pick(k));
+  SYNC_ADD.forEach(k => M[k] = add(B[k], L[k], R[k]));
+  SYNC_MAX.forEach(k => M[k] = Math.max(num(L[k]), num(R[k])));
+  SYNC_UNION.forEach(k => M[k] = Object.assign({}, R[k]||{}, L[k]||{}));
+  const addMap = (b,l,r) => { const o={}; new Set([...Object.keys(l||{}), ...Object.keys(r||{})]).forEach(d => o[d] = add((b||{})[d], (l||{})[d], (r||{})[d])); return o; };
+  M.days = addMap(B.days, L.days, R.days);
+  M.n = addMap(B.n, L.n, R.n);
+  M.game = Object.assign({}, R.game, L.game, {best: Math.max(num(L.game?.best), num(R.game?.best))});
+  M.topics = {};
+  new Set([...Object.keys(L.topics||{}), ...Object.keys(R.topics||{})]).forEach(id => {
+    const b = (B.topics||{})[id]||{}, l = (L.topics||{})[id]||{}, r = (R.topics||{})[id]||{}, t = {};
+    new Set([...Object.keys(l), ...Object.keys(r)]).forEach(f => {
+      t[f] = f==="best" ? Math.max(num(l[f]), num(r[f])) : (typeof (l[f]??r[f])==="number" ? add(b[f], l[f], r[f]) : (same(l[f], b[f]) ? (f in r ? r[f] : l[f]) : l[f]));
+    });
+    M.topics[id] = t;
+  });
+  const seen = new Set(); M.mistakes = [...(L.mistakes||[]), ...(R.mistakes||[])].filter(m => { const k = m.t+"|"+m.q; if(seen.has(k)) return false; seen.add(k); return true; })
+    .sort((a,b) => String(b.d||"").localeCompare(String(a.d||""))).slice(0,40);
+  const lL = String(L.last||""), lR = String(R.last||"");
+  if(lL > lR){ M.last = L.last; M.streak = L.streak; } else if(lR > lL){ M.last = R.last; M.streak = R.streak; } else { M.last = L.last ?? R.last; M.streak = Math.max(num(L.streak), num(R.streak)); }
+  ["daily","chestDay"].forEach(k => { const a = L[k]||"", b = R[k]||""; M[k] = (a > b ? a : b) || null; });
+  M.best = Math.max(M.best, num(M.streak));
+  return M;
+}
+function syncApply(M){
+  const keep = {}; SYNC_LOCAL.forEach(k => { if(k in S) keep[k] = S[k]; });
+  const before = JSON.stringify(syncable(S));
+  S = Object.assign(DEF(), JSON.parse(JSON.stringify(M)), keep);
+  try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){}
+  if(before !== JSON.stringify(syncable(S))){ applyTheme(); if(!["structured","game","quiz","tutor","cards"].includes(tab)) render(); else renderHeader(); }
+}
+function syncSoon(ms){ if(!SY || !syncOK()) return; clearTimeout(syncT); syncT = setTimeout(()=>syncNow(), ms ?? 12000); }
+async function syncNow(manual){
+  if(!SY || !syncOK()) return false;
+  if(!navigator.onLine){ if(manual) toast("You're offline. It will sync when you're back online."); return false; }
+  if(syncBusy){ syncAgain = true; return false; }
+  syncBusy = true; clearTimeout(syncT); let ok = false;
+  try{
+    let r = await fetch(SYNC_API+SY.id, {cache:"no-store"}).then(x => { if(!x.ok) throw 0; return x.json(); });
+    for(let i=0; i<4; i++){
+      const L = syncable(S);
+      if(r.v === SY.v && SY.base && JSON.stringify(L) === JSON.stringify(SY.base)){ ok = true; break; }
+      const M = (r.data && r.v !== SY.v) ? mergeState(SY.base, L, JSON.parse(r.data)) : L;
+      const p = await fetch(SYNC_API+SY.id, {method:"PUT", headers:{"content-type":"application/json"}, body: JSON.stringify({ifV: r.v, data: JSON.stringify(M)})});
+      if(p.status === 409){ r = await p.json(); continue; }
+      if(!p.ok) throw 0;
+      const res = await p.json();
+      syncApply(M); SY.v = res.v; SY.base = JSON.parse(JSON.stringify(M)); ok = true; break;
+    }
+  }catch(e){ ok = false; }
+  syncBusy = false; syncErr = !ok;
+  if(ok){ SY.at = Date.now(); sySave(); }
+  if(manual) toast(ok ? "Synced" : "Couldn't sync. Check your internet and try again.", ok);
+  if(tab==="me" && document.getElementById("syncCard")) renderSyncCard();
+  if(syncAgain){ syncAgain = false; syncSoon(1500); }
+  return ok;
+}
+async function syncTurnOn(){
+  const code = newSyncCode();
+  SY = {code, id: await codeId(code), v: 0, base: null, at: null}; sySave();
+  const ok = await syncNow();
+  if(!ok){ SY = null; sySave(); toast("Couldn't turn on sync. Check your internet and try again."); }
+  else toast("Sync is on", true);
+  render();
+}
+async function syncJoin(raw){
+  const code = normCode(raw);
+  if(code.length !== 12){ toast("A sync code has 12 letters and numbers, like ABCD-EFGH-JKMN."); return false; }
+  const id = await codeId(code);
+  let r; try{ r = await fetch(SYNC_API+id, {cache:"no-store"}).then(x => x.json()); }catch(e){ toast("Couldn't connect. Check your internet and try again."); return false; }
+  if(!r.data){ toast("No progress found for that code. Check it and try again."); return false; }
+  // Base for joining: settings as they are here (so the other device's settings win), counters at zero (so both devices' progress adds up).
+  const L = syncable(S);
+  const base = Object.assign(JSON.parse(JSON.stringify(L)), {xp:0,coins:0,freezes:0,best:0,n:{},days:{},topics:{},badges:{},owned:{},claimed:{},lessonDay:{},mistakes:[],game:{best:0}});
+  if(!S.name) base.name = L.name;
+  SY = {code, id, v: -1, base, at: null}; sySave();
+  const ok = await syncNow();
+  if(!ok){ SY = null; sySave(); toast("Couldn't sync. Check your internet and try again."); return false; }
+  toast(`Synced! Welcome back${S.name ? ", "+S.name : ""}.`, true);
+  go(S.name ? "home" : "me");
+  return true;
+}
+function syncCardHTML(){
+  if(!syncOK()) return "";
+  return `<div class="card" id="syncCard"></div>`;
+}
+function renderSyncCard(){
+  const c = document.getElementById("syncCard"); if(!c) return;
+  if(SY){
+    const when = SY.at ? new Date(SY.at).toLocaleString([], {weekday:"short", hour:"numeric", minute:"2-digit"}) : "not yet";
+    c.innerHTML = `<span class="eyebrow">Sync is on</span>
+      <p style="margin:6px 0 4px">Your sync code:</p>
+      <div class="row" style="flex-wrap:nowrap"><b class="mono" style="font-family:var(--f-mono);font-size:22px;letter-spacing:.06em;flex:1">${esc(showCode(SY.code))}</b><button class="btn sm ghost" id="syCopy">Copy</button></div>
+      <p class="muted" style="margin:8px 0;font-size:14px">On your other device (or a new phone), open Ledger Up, tap your picture at the top left, and enter this code under <b>Sync</b>. Keep it private: anyone with the code can change your progress.</p>
+      <p style="margin:0 0 10px;font-size:14px">${syncErr ? `<span style="color:var(--red)">Last try didn't work.</span> ` : ""}Last synced: ${esc(when)}</p>
+      <div class="row"><button class="btn sm" id="syNow">Sync now</button><span id="syOffZ"><button class="btn line sm" id="syOff">Turn off on this device</button></span></div>`;
+    $("#syCopy").onclick = async ()=>{ try{ await navigator.clipboard.writeText(showCode(SY.code)); toast("Code copied"); }catch(e){ toast(showCode(SY.code)); } };
+    $("#syNow").onclick = ()=>{ $("#syNow").disabled = true; syncNow(true); };
+    $("#syOff").onclick = ()=>{ $("#syOffZ").innerHTML = `<b style="font-size:14px">Stop syncing here?</b> Your progress stays on this device. <button class="btn red sm" id="syOffY">Yes</button> <button class="btn line sm" id="syOffN">Cancel</button>`;
+      $("#syOffY").onclick = ()=>{ SY = null; sySave(); toast("Sync turned off on this device"); render(); }; $("#syOffN").onclick = renderSyncCard; };
+  } else {
+    c.innerHTML = `<span class="eyebrow">Sync</span>
+      <h3 style="margin-top:6px">Use Ledger Up on a phone and a PC?</h3>
+      <p class="muted" style="margin:0 0 10px;font-size:14px">Turn on sync and your XP, streak, badges, coins and rewards stay the same on every device. It's also how you move to a new phone.</p>
+      <button class="btn block" id="syOn">Turn on sync</button>
+      ${syncJoinHTML("syJoin")}`;
+    $("#syOn").onclick = ()=>{ $("#syOn").disabled = true; $("#syOn").textContent = "Turning on…"; syncTurnOn(); };
+    bindSyncJoin("syJoin");
+  }
+}
+function syncJoinHTML(id){ return `<div style="margin-top:12px"><label class="lab" for="${id}">Already have a sync code from your other device?</label><div class="row" style="flex-wrap:nowrap"><input class="field" id="${id}" placeholder="ABCD-EFGH-JKMN" autocomplete="off" autocapitalize="characters" spellcheck="false" style="font-family:var(--f-mono)"><button class="btn sm" id="${id}-go">Join</button></div></div>`; }
+function bindSyncJoin(id){ const b = document.getElementById(id+"-go"); if(!b) return; b.onclick = async ()=>{ b.disabled = true; b.textContent = "…"; const ok = await syncJoin(document.getElementById(id).value); if(!ok && document.getElementById(id+"-go")){ b.disabled = false; b.textContent = "Join"; } }; }
 
 const pad = n => String(n).padStart(2,"0");
 const dstr = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
@@ -799,8 +937,10 @@ function viewWelcome(v){
     <input class="field" id="nm" maxlength="30" autocomplete="given-name" placeholder="Your first name" required></div>
     <button class="btn block" type="submit">Start studying</button>
   </form></div>
+  ${syncOK()?`<div class="card"><span class="eyebrow">Already using Ledger Up?</span><p style="margin:6px 0 0;font-size:14px">On your other device, tap your picture at the top left, turn on <b>Sync</b>, and enter the code here to bring your progress across.</p>${syncJoinHTML("wJoin")}</div>`:""}
   ${STANDALONE?`<div class="card"><span class="eyebrow">Parents</span><p style="margin:6px 0 10px">Setting up real-life rewards from your own phone?</p><button class="btn line block" id="asParent">I'm a parent</button></div>`:""}`;
   if($("#asParent")) $("#asParent").onclick = ()=>{ S.role="parent"; S.name="Parent"; save(); go("parenthome"); };
+  bindSyncJoin("wJoin");
   $("#wf").onsubmit = e => { e.preventDefault(); const n=$("#nm").value.trim(); if(!n) return; S.name=n; save(); go("home"); };
 }
 
@@ -1309,15 +1449,17 @@ function viewMe(v){
   <div class="card"><span class="eyebrow">Topic mastery</span><div class="view" style="gap:8px;margin-top:8px">
     ${TOPICS.map(t=>{const m=mastery(t.id);return `<div class="row" style="flex-wrap:nowrap"><span style="flex:1;min-width:0;font-size:14px">${esc(t.name)}</span><div class="bar" style="width:30%"><i style="width:${m||0}%"></i></div><span class="mono" style="font-family:var(--f-mono);font-size:12px;width:36px;text-align:right">${m===null?"–":m+"%"}</span></div>`;}).join("")}
   </div></div>
+  ${syncCardHTML()}
   <div class="card"><span class="eyebrow">Settings</span>
     <div class="view" style="gap:10px;margin-top:8px">
       <div><label class="lab" for="rn">Name</label><div class="row" style="flex-wrap:nowrap"><input class="field" id="rn" value="${esc(S.name)}" maxlength="30"><button class="btn sm" id="rnSave">Save</button></div></div>
-      <p class="muted" style="margin:0;font-size:14px">Progress is saved to your Claude account when you're signed in, and on this device. Exam countdown: May/June 2028.</p>
+      <p class="muted" style="margin:0;font-size:14px">${STANDALONE?"Progress is saved on this device. Turn on Sync above to keep it the same on your other devices.":"Progress is saved to your Claude account when you're signed in, and on this device."} Exam countdown: May/June 2028.</p>
       <div id="resetZone"><button class="btn line sm" id="rst">Reset all progress</button></div>
     </div></div>`;
+  renderSyncCard();
   $("#rnSave").onclick=()=>{ const n=$("#rn").value.trim(); if(n){ S.name=n; save(); toast("Name saved"); render(); } };
   $("#rst").onclick=()=>{ $("#resetZone").innerHTML = `<p style="margin:0 0 8px"><b>Delete all XP, streaks, badges and mistakes?</b> This can't be undone.</p><div class="row"><button class="btn red sm" id="rstY">Yes, reset</button><button class="btn line sm" id="rstN">Cancel</button></div>`;
-    $("#rstY").onclick=()=>{ const n=S.name; S=DEF(); S.name=n; save(); toast("Progress reset"); go("home"); }; $("#rstN").onclick=()=>render(); };
+    $("#rstY").onclick=()=>{ const n=S.name; S=DEF(); S.name=n; if(SY){ SY=null; sySave(); } save(); toast("Progress reset"); go("home"); }; $("#rstN").onclick=()=>render(); };
   v.querySelectorAll("[data-mk]").forEach(b=>b.onclick=()=>{ const m=S.mistakes[+b.dataset.mk]; S.n.review++; checkBadges(); save(); chatTopic=m.t; pendingChat=`I got this wrong earlier:\n\n${m.q}\nI said: ${m.chosen}\nCorrect: ${m.correct}\n\nExplain step by step why, then give me a similar question to try.`; go("tutor"); });
 }
 
@@ -1851,6 +1993,11 @@ render();
 handleClaim(); handleRewardsLink(); handleProgressLink();
 initAI();
 initCloud();
+if(STANDALONE){
+  syncNow();
+  document.addEventListener("visibilitychange", ()=>syncNow());
+  window.addEventListener("online", ()=>syncNow());
+}
 </script>
 
 <script>
