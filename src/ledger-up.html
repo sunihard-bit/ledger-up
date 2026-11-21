@@ -544,7 +544,7 @@ function pendingCounts(){ const b=S.pendBase||{}; return {t:Math.max(0,(S.n.tuto
 function claimURL(){ const x=S.pendXP||0, c=pendingCounts(), id=(S.claimId ||= Math.random().toString(36).slice(2,8)); const chk=hashStr(`${x}|${c.t}|${c.s}|${c.p}|${id}|${CLAIM_KEY}`)%100000; return `${APP_URL}/#claim-x${x}t${c.t}s${c.s}p${c.p}-${id}-${chk}`; }
 function markClaimSent(){ S.pendXP=0; S.pendBase={tutor:S.n.tutor,structured:S.n.structured,photo:S.n.photo}; S.claimId=null; save(); renderHeader(); }
 function handleClaim(){
-  const m = location.hash.match(/^#claim-x(\d+)t(\d+)s(\d+)p(\d+)-([a-z0-9]+)-(\d+)$/); if(!m || COACH_MODE) return;
+  const m = location.hash.match(/^#claim-x(\d+)t(\d+)s(\d+)p(\d+)-([a-z0-9]+)-(\d+)$/); if(!m || COACH_MODE || S.role==="parent") return;
   try{ history.replaceState(null,"",location.pathname); }catch(e){ location.hash=""; }
   const [_,x,t,s2,p,id,chk] = m; S.claimed ||= {};
   if(String(hashStr(`${x}|${t}|${s2}|${p}|${id}|${CLAIM_KEY}`)%100000)!==chk){ toast("That points link didn't work."); return; }
@@ -735,7 +735,8 @@ let tab = "home", sub = null;
 const TABS = [["home","Home","home"],["topics","Topics","book"],["tutor","Coach","chat"],["practice","Practice","target"],["rewards","Rewards","gift"]];
 function go(t, s=null){ stopGame(); if(t==="game") G=null; tab=t; sub=s; render(); window.scrollTo({top:0}); }
 function renderTabs(){
-  const list = COACH_MODE ? [["tutor","Coach","chat"],["topics","Lessons","book"],["practice","Paper 02","target"]] : TABS;
+  const list = COACH_MODE ? [["tutor","Coach","chat"],["topics","Lessons","book"],["practice","Paper 02","target"]] : S.role==="parent" ? [["parenthome","Rewards","gift"]] : TABS;
+  document.querySelector("nav.tabs").hidden = S.role==="parent";
   $("#tabs").style.gridTemplateColumns = `repeat(${list.length},1fr)`;
   $("#tabs").innerHTML = list.map(([id,label,ic])=>`<button class="${tab===id?"on":""}" data-tab="${id}" aria-current="${tab===id?"page":"false"}">${ico(ic)}<span>${label}</span></button>`).join("");
   $("#tabs").querySelectorAll("button").forEach(b=>b.onclick=()=>go(b.dataset.tab));
@@ -750,6 +751,9 @@ function renderHeader(){
     const sp=$("#sendPts"); if(sp) sp.onclick=()=>setTimeout(markClaimSent,300);
     return;
   }
+  const isP = S.role==="parent";
+  $("#hdrAv").hidden=isP; $("#hdrStreak").hidden=isP; $("#hdrCoins").hidden=isP; $("#hdrBar").parentElement.hidden=isP;
+  document.querySelector(".brand").innerHTML = isP ? "Ledger Up <small>PARENT</small>" : "Ledger Up";
   const L = levelOf(S.xp), lo = levelFloor(L), hi = levelFloor(L+1);
   $("#hdrStreak").innerHTML = ico("flame")+liveStreak();
   $("#hdrCoins").innerHTML = `<span class="coinico">c</span>`+S.coins.toLocaleString();
@@ -760,8 +764,9 @@ function render(){
   renderHeader(); renderTabs();
   const v = $("#view");
   if(COACH_MODE && ["home","rewards","me","parent","game","cards"].includes(tab)) tab="tutor";
+  if(S.role==="parent" && S.name) tab="parenthome"; else if(tab==="parenthome") tab="home";
   if(!S.name && tab!=="welcome"){ return viewWelcome(v); }
-  ({home:viewHome, topics:viewTopics, tutor:viewTutor, practice:viewPractice, me:viewMe, quiz:viewQuiz, game:viewGame, structured:viewStructured, rewards:viewRewards, parent:viewParent, cards:viewCards})[tab](v);
+  ({home:viewHome, topics:viewTopics, tutor:viewTutor, practice:viewPractice, me:viewMe, quiz:viewQuiz, game:viewGame, structured:viewStructured, rewards:viewRewards, parent:viewParent, cards:viewCards, parenthome:viewParentHome})[tab](v);
 }
 
 /* =================== WELCOME =================== */
@@ -776,7 +781,9 @@ function viewWelcome(v){
     <div><label class="lab" for="nm">What should Coach call you?</label>
     <input class="field" id="nm" maxlength="30" autocomplete="given-name" placeholder="Your first name" required></div>
     <button class="btn block" type="submit">Start studying</button>
-  </form></div>`;
+  </form></div>
+  ${STANDALONE?`<div class="card"><span class="eyebrow">Parents</span><p style="margin:6px 0 10px">Setting up real-life rewards from your own phone?</p><button class="btn line block" id="asParent">I'm a parent</button></div>`:""}`;
+  if($("#asParent")) $("#asParent").onclick = ()=>{ S.role="parent"; S.name="Parent"; save(); go("parenthome"); };
   $("#wf").onsubmit = e => { e.preventDefault(); const n=$("#nm").value.trim(); if(!n) return; S.name=n; save(); go("home"); };
 }
 
@@ -1625,7 +1632,8 @@ function viewRewards(v){
       return `<div class="rreward ${done&&!r.given?"ready":""}"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b>${done?"🏆":"🎯"} ${esc(r.title)}</b>${r.given?`<span class="mastery good">Received</span>`:done?`<span class="mastery mid">Unlocked!</span>`:""}</div>
       <span class="muted" style="font-size:13px">${esc(GOALS[r.type])} ${r.target}</span><div class="row" style="flex-wrap:nowrap"><div class="bar" style="flex:1"><i style="width:${Math.round(now/r.target*100)}%;background:var(--gold)"></i></div><span style="font-family:var(--f-mono);font-size:12px">${now}/${r.target}</span></div>
       ${done&&!r.given?`<span style="font-size:13px"><b>Show this to your parent to claim it.</b></span>`:""}</div>`; }).join("")}</div>`
-    :`<p class="muted" style="margin:8px 0 0">A parent can set real prizes for milestones, like "Reach level 5: KFC lunch" or "30-day streak: new football boots". They're protected with a PIN.</p>`}
+    :`<p class="muted" style="margin:8px 0 0">A parent can set real prizes for milestones, like "Reach level 5: KFC lunch" or "30-day streak: new football boots". They can set them on their own phone and send them to you, or here with a PIN.</p>`}
+    <button class="btn ghost block" id="sendProg" style="margin-top:10px">Send my progress to my parent</button><div id="progBox" hidden style="margin-top:8px"></div>
   </div>
 
   <div class="card"><span class="eyebrow">Shop</span>
@@ -1646,6 +1654,7 @@ function viewRewards(v){
     ${BADGES.map(b=>`<div class="badge ${S.badges[b.id]?"got":""}"><div class="medal">${esc(b.m)}</div><b>${esc(b.n)}</b><span>${esc(b.d)}</span></div>`).join("")}</div></div>
   <button class="btn line block" id="toMe">My progress, mistakes and settings</button>`;
   $("#toMe").onclick = ()=>go("me");
+  $("#sendProg").onclick = ()=>shareLink("Ledger Up progress", `My Ledger Up progress (level ${levelOf(S.xp)}, ${liveStreak()}-day streak). Open it in your Ledger Up parent app:`, signed("progress", progressPayload()), "progBox");
   $("#parentBtn").onclick = ()=>parentGate();
   v.querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>{ S.shopTab=b.dataset.st; save(); render(); });
   v.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>{ const it=SHOP.find(x=>x.id===b.dataset.buy); if(S.coins<it.p) return;
@@ -1708,6 +1717,104 @@ function viewParent(v){
   v.querySelectorAll("[data-given]").forEach(b=>b.onclick=()=>{ pr[+b.dataset.given].given=today(); save(); render(); });
 }
 
+/* =================== PARENT PHONE MODE =================== */
+const LINK_KEY = "ledgerup-p3";
+const b64e = o => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const b64d = s => JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g,"+").replace(/_/g,"/")))));
+const signed = (kind, o) => { const d=b64e(o); return `${APP_URL}/#${kind}-${d}-${hashStr(kind+"|"+d+"|"+LINK_KEY)%1000000}`; };
+function readSigned(kind){
+  const m = location.hash.match(new RegExp("^#"+kind+"-([A-Za-z0-9_-]+)-(\\d+)$")); if(!m) return null;
+  try{ history.replaceState(null,"",location.pathname); }catch(e){}
+  if(String(hashStr(kind+"|"+m[1]+"|"+LINK_KEY)%1000000)!==m[2]) { toast("That link looks damaged. Ask for it to be sent again."); return null; }
+  try{ return b64d(m[1]); }catch(e){ toast("That link looks damaged. Ask for it to be sent again."); return null; }
+}
+async function shareLink(title, text, url, boxId){
+  if(navigator.share){ try{ await navigator.share({title, text, url}); return; }catch(e){ if(e && e.name==="AbortError") return; } }
+  try{ await navigator.clipboard.writeText(text+"\n"+url); toast("Link copied. Paste it into WhatsApp or a text message."); }catch(e){}
+  const box = boxId && document.getElementById(boxId);
+  if(box){ box.hidden=false; box.innerHTML = `<label class="lab" for="${boxId}-t">Copy this link and send it:</label><textarea class="field mono" id="${boxId}-t" readonly style="min-height:70px">${esc(url)}</textarea>`; const t=document.getElementById(boxId+"-t"); t.focus(); t.select(); }
+}
+function goalLabel(r){ return `${GOALS[r.type]} ${r.target}`; }
+
+/* Son's phone: receive rewards from the parent */
+function handleRewardsLink(){
+  if(COACH_MODE || S.role==="parent") return;
+  const d = readSigned("rewards"); if(!d || !Array.isArray(d.r)) return;
+  const old = S.parent.rewards || [];
+  S.parent.rewards = d.r.map(x=>{ const prev = old.find(o=>o.title===x.title && o.type===x.type && o.target===x.target);
+    const r = {title:String(x.title).slice(0,60), type:GOALS[x.type]?x.type:"level", target:Math.max(1,+x.target||1), reached: prev?.reached || null, given: x.given || prev?.given || null};
+    if(!r.reached && goalNow(r.type)>=r.target) r.reached = today(); return r; });
+  S.parentLinkAt = d.at || today();
+  save(); if(S.name) go("rewards");
+  queueModal(()=>{ confetti(); modal(`<span class="eyebrow">From your parent</span><h2>Your real-life rewards are set!</h2>
+    <div class="view" style="gap:6px;width:100%;text-align:left">${S.parent.rewards.map(r=>`<div class="rreward"><b>🎯 ${esc(r.title)}</b><span class="muted" style="font-size:13px">${esc(goalLabel(r))}</span></div>`).join("")||"<p>No rewards right now.</p>"}</div>
+    <button class="btn block" id="mClose">Let's go</button>`, (x,close)=>{ $("#mClose").onclick=close; }); });
+}
+function progressPayload(){
+  const week = [...Array(7)].map((_,k)=>{ const d=new Date(); d.setDate(d.getDate()-(6-k)); return S.days[dstr(d)]||0; });
+  return {n:S.name, l:levelOf(S.xp), x:S.xp, s:liveStreak(), b:S.best, m:Object.values(S.topics).filter(t=>(t.best||0)>=80).length,
+    q:S.n.quiz, d:S.n.daily, p2:S.n.structured, bd:Object.keys(S.badges).length, w:week, at:today(),
+    weak:weakTopics(3).map(t=>t.name), tp:TOPICS.filter(t=>S.topics[t.id]?.attempts).length,
+    r:(S.parent.rewards||[]).map(r=>({t:r.title, ty:r.type, g:r.target, now:goalNow(r.type)}))};
+}
+
+/* Parent's phone */
+function handleProgressLink(){
+  if(COACH_MODE) return;
+  const d = readSigned("progress"); if(!d) return;
+  if(S.role!=="parent"){ toast("That's a progress link for a parent's phone."); return; }
+  S.kid = d; S.kidName = d.n || S.kidName; save(); go("parenthome"); toast(`${d.n||"Your child"}'s progress updated`, true);
+}
+function viewParentHome(v){
+  const kid = S.kid, kn = S.kidName || "your child";
+  const pr = S.pRewards ||= [];
+  const now = r => kid?.r?.find(x=>x.t===r.title && x.ty===r.type && x.g===r.target)?.now ?? null;
+  const kidNow = type => !kid ? null : type==="level"?kid.l:type==="streak"?kid.b:type==="xp"?kid.x:type==="mastered"?kid.m:type==="paper2"?kid.p2:type==="daily"?kid.d:null;
+  v.innerHTML = `
+  <div class="hero"><div class="ledgerlines"></div><span class="eyebrow" style="color:inherit;opacity:.8">Parent mode</span><h2>${esc(kn)}'s rewards</h2>
+    <p style="margin:0">Set real-life prizes here, then send them to ${esc(kn)}'s phone. Ask ${esc(kn)} to send you a progress link any time to see how they're doing.</p></div>
+
+  <div class="card"><span class="eyebrow">Latest progress</span>
+   ${kid?`<p class="muted" style="margin:4px 0 8px;font-size:13px">Sent on ${esc(kid.at)}</p>
+    <div class="stats" style="grid-template-columns:repeat(3,1fr)">
+      ${[["Level",kid.l],["Day streak",kid.s],["Best streak",kid.b],["Total XP",kid.x],["Topics 80%+",kid.m],["Quizzes",kid.q]].map(([a,b])=>`<div class="stat" style="background:var(--bg)"><b>${esc(String(b))}</b><span>${a}</span></div>`).join("")}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end;height:70px;margin-top:12px">${(kid.w||[]).map(x=>`<div style="height:${Math.max(4,Math.round(x/Math.max(DAILY_GOAL,...kid.w)*60))}px;border-radius:4px;background:${x>=DAILY_GOAL?"var(--green)":x?"var(--gold)":"var(--line)"}"></div>`).join("")}</div>
+    <span class="muted" style="font-size:12px">XP over the last 7 days (green = daily goal met)</span>
+    ${kid.weak?.length?`<p style="margin:10px 0 0;font-size:14px"><b>Needs practice:</b> ${esc(kid.weak.join(", "))}</p>`:""}`
+   :`<p class="muted" style="margin:6px 0 0">Nothing yet. On ${esc(kn)}'s phone: Rewards, then <b>Send my progress to my parent</b>. When you open that link here, the progress shows up.</p>`}
+  </div>
+
+  <div class="card"><span class="eyebrow">Rewards</span>
+   ${pr.length?`<div class="view" style="gap:8px;margin-top:8px">${pr.map((r,i)=>{ const n=kidNow(r.type); const done = n!==null && n>=r.target;
+     return `<div class="rreward ${done&&!r.given?"ready":""}"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b>${done?"🏆":"🎯"} ${esc(r.title)}</b>${r.given?`<span class="mastery good">Given</span>`:done?`<span class="mastery mid">Earned!</span>`:""}</div>
+      <span class="muted" style="font-size:13px">${esc(goalLabel(r))}${n!==null?` · now ${n}`:""}</span>
+      ${n!==null?`<div class="bar"><i style="width:${Math.min(100,Math.round(n/r.target*100))}%;background:var(--gold)"></i></div>`:""}
+      <div class="row">${done&&!r.given?`<button class="btn sm" data-given="${i}">Mark as given</button>`:""}<button class="btn line sm" data-del="${i}">Remove</button></div></div>`; }).join("")}</div>`
+   :`<p class="muted" style="margin:6px 0 0">No rewards yet. Add one below.</p>`}
+   <form id="prf" class="view" style="gap:10px;margin-top:14px;border-top:1px dashed var(--line);padding-top:14px">
+    <div><label class="lab" for="prt">New reward</label><input class="field" id="prt" maxlength="60" placeholder="e.g. Movie at MovieTowne" required></div>
+    <div class="grid2"><div><label class="lab" for="prty">When ${esc(kn)} reaches</label><select class="field" id="prty">${Object.entries(GOALS).map(([k,l])=>`<option value="${k}">${esc(l.replace(/ of$|:$/,""))}</option>`).join("")}</select></div>
+    <div><label class="lab" for="prn">Target</label><input class="field" id="prn" type="number" min="1" max="100000" value="5" required></div></div>
+    <button class="btn line" type="submit">Add reward</button></form>
+  </div>
+  <button class="btn gold block" id="pSend">Send rewards to ${esc(kn)}'s phone</button>
+  <div id="pLinkBox" hidden></div>
+  <div class="card"><span class="eyebrow">Ideas</span><p style="margin:6px 0 0;font-size:14px">Small and often works best: a treat for a 7-day streak, something bigger at level 5, an outing for 10 topics at 80%+.</p></div>
+  <div class="card"><span class="eyebrow">Settings</span><div class="view" style="gap:8px;margin-top:8px">
+    <div><label class="lab" for="pkn">Child's name</label><div class="row" style="flex-wrap:nowrap"><input class="field" id="pkn" value="${esc(S.kidName||"")}" maxlength="30"><button class="btn sm" id="pknS">Save</button></div></div>
+    <div id="pSwitch"><button class="btn line sm" id="pStudent">Switch this phone to student mode</button></div></div></div>`;
+  $("#prf").onsubmit = e=>{ e.preventDefault(); const title=$("#prt").value.trim(); if(!title) return; pr.push({title, type:$("#prty").value, target:Math.max(1,parseInt($("#prn").value,10)||1), given:null}); save(); toast("Added. Remember to send it."); render(); };
+  v.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ pr.splice(+b.dataset.del,1); save(); render(); });
+  v.querySelectorAll("[data-given]").forEach(b=>b.onclick=()=>{ pr[+b.dataset.given].given=today(); save(); render(); });
+  $("#pSend").onclick = ()=>{ if(!pr.length){ toast("Add a reward first."); return; }
+    const url = signed("rewards", {r:pr.map(r=>({title:r.title,type:r.type,target:r.target,given:r.given})), at:today()});
+    shareLink("Ledger Up rewards", `${S.kidName||"Hi"}, here are your Ledger Up rewards! Open this on your phone:`, url, "pLinkBox"); };
+  $("#pknS").onclick = ()=>{ S.kidName=$("#pkn").value.trim(); save(); render(); };
+  $("#pStudent").onclick = ()=>{ $("#pSwitch").innerHTML = `<p style="margin:0 0 8px"><b>Use this phone for studying instead?</b> Your reward list stays saved.</p><div class="row"><button class="btn sm" id="psY">Yes, switch</button><button class="btn line sm" id="psN">Cancel</button></div>`;
+    $("#psY").onclick=()=>{ S.role=null; S.name=""; save(); go("home"); }; $("#psN").onclick=()=>render(); };
+}
+
 /* =================== BOOT =================== */
 let installEvt = null;
 window.addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); installEvt = e; if(tab==="home") render(); });
@@ -1716,9 +1823,9 @@ if(COACH_MODE){
   const h = location.hash.slice(1);
   if(h==="paper2") tab="practice"; else if(TOPIC[h]){ chatTopic=h; tab="tutor"; } else tab="tutor";
   window.addEventListener("hashchange", ()=>{ const k=location.hash.slice(1); if(TOPIC[k]){ chatTopic=k; go("tutor"); } else if(k==="paper2") go("practice"); });
-} else { window.addEventListener("hashchange", handleClaim); }
+} else { window.addEventListener("hashchange", ()=>{ handleClaim(); handleRewardsLink(); handleProgressLink(); }); }
 render();
-handleClaim();
+handleClaim(); handleRewardsLink(); handleProgressLink();
 initAI();
 initCloud();
 </script>
