@@ -1,0 +1,1747 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0A5246">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ledger Up">
+<meta name="description" content="CSEC Principles of Accounts study app">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Ledger Up POA</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: phone-first app shell. Sticky score bar on top, one view at a time, tab bar fixed at the bottom. Ledger-book greens, gold for rewards, red ink for mistakes. */
+:root{
+  --bg:#EEF3F0; --paper:#FFFFFF; --ink:#13241F; --muted:#5A6E67; --line:#D3DFD9;
+  --green:#0D6A58; --green-2:#0A5246; --green-soft:#DCEDE7;
+  --gold:#D89A12; --gold-soft:#FBEFD2;
+  --red:#C23B33; --red-soft:#F8E1DE;
+  --blue:#2C5FA8; --blue-soft:#E1EAF7;
+  --on-green:#FFFFFF;
+  --dr:#1F5FC4; --dr-soft:#E0EAFA; --cr:#C9620F; --cr-soft:#FBE8D6; --coin:#B7860B;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Figtree", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --nav-h:64px; --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1714; --paper:#15221E; --ink:#E6F0EC; --muted:#93A9A1; --line:#26372F;
+  --green:#3FB89B; --green-2:#2E9C82; --green-soft:#173A31;
+  --gold:#F0B93A; --gold-soft:#3A2E12; --red:#F07A70; --red-soft:#3D1D1A;
+  --blue:#7FA8E8; --blue-soft:#1A2A42; --on-green:#06201A;
+  --dr:#78A6F0; --dr-soft:#1B2B47; --cr:#F2A25C; --cr-soft:#3D2814; --coin:#F0C34A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1714; --paper:#15221E; --ink:#E6F0EC; --muted:#93A9A1; --line:#26372F;
+  --green:#3FB89B; --green-2:#2E9C82; --green-soft:#173A31;
+  --gold:#F0B93A; --gold-soft:#3A2E12; --red:#F07A70; --red-soft:#3D1D1A;
+  --blue:#7FA8E8; --blue-soft:#1A2A42; --on-green:#06201A;
+  --dr:#78A6F0; --dr-soft:#1B2B47; --cr:#F2A25C; --cr-soft:#3D2814; --coin:#F0C34A; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--f-body);font-size:16px;line-height:1.5;padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 12px)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--green-2)}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+h1,h2,h3,h4{font-family:var(--f-display);line-height:1.15;text-wrap:balance;margin:0}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--green-2);color:#fff}
+.top .wrap{display:flex;align-items:center;gap:12px;padding-block:10px}
+.brand{font-family:var(--f-display);font-weight:800;font-size:20px;letter-spacing:-.01em;flex:1;min-width:0;display:flex;align-items:center;gap:8px}
+.brand small{font-family:var(--f-mono);font-weight:400;font-size:11px;opacity:.75;letter-spacing:.06em}
+.pill{display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:14px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.14);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill svg{width:16px;height:16px}
+.pill.flame{color:#FFD27A}
+.xpbar{height:4px;background:rgba(255,255,255,.18)}
+.xpbar i{display:block;height:100%;background:#FFC94A;transition:width .6s ease}
+
+/* views */
+main{padding-block:16px 8px}
+.view{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.card h3{font-size:18px;margin-bottom:6px}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:700;background:var(--green);color:var(--on-green);display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;text-align:center}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:var(--green-soft);color:var(--green)}
+.btn.gold{background:var(--gold);color:#241800}
+.btn.line{background:transparent;border:1.5px solid var(--line);color:var(--ink)}
+.btn.red{background:var(--red);color:#fff}
+.btn.sm{min-height:36px;padding:7px 12px;font-size:14px;border-radius:10px}
+.btn.block{width:100%}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.chip{border:1.5px solid var(--line);background:var(--paper);border-radius:999px;padding:7px 12px;font-size:14px;font-weight:600}
+.chip:hover{border-color:var(--green)}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--green);border-radius:99px}
+
+/* hero */
+.hero{background:var(--green);color:var(--on-green);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden}
+.hero h2{font-size:26px}
+.hero .ledgerlines{position:absolute;inset:0;background:repeating-linear-gradient(180deg,transparent 0 27px,rgba(255,255,255,.08) 27px 28px);pointer-events:none}
+.hero .ledgerlines::after{content:"";position:absolute;top:0;bottom:0;right:84px;border-left:2px solid rgba(255,120,110,.35)}
+.hero > *{position:relative}
+.goal{display:flex;align-items:center;gap:14px}
+.ring{--p:0;width:64px;height:64px;border-radius:50%;background:conic-gradient(#FFC94A calc(var(--p)*1%),rgba(255,255,255,.2) 0);display:grid;place-items:center;flex:none}
+.ring b{width:50px;height:50px;border-radius:50%;background:var(--green);display:grid;place-items:center;font-size:13px;font-variant-numeric:tabular-nums}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:rgba(255,255,255,.12);border-radius:12px;padding:8px 10px}
+.stat b{display:block;font-family:var(--f-display);font-size:22px;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;opacity:.85}
+
+/* topics */
+.sec-h{display:flex;align-items:baseline;gap:8px;margin-top:6px}
+.sec-h h3{font-size:16px}
+.tlist{display:flex;flex-direction:column;gap:8px}
+.titem{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:left;width:100%}
+.titem .num{font-family:var(--f-mono);font-size:12px;color:var(--muted);width:24px}
+.titem b{display:block;font-weight:700;line-height:1.25}
+.titem .sub{font-size:13px;color:var(--muted)}
+.mastery{font-family:var(--f-mono);font-size:12px;font-weight:600;padding:3px 8px;border-radius:99px;background:var(--line);color:var(--muted);white-space:nowrap}
+.mastery.good{background:var(--green-soft);color:var(--green)}
+.mastery.mid{background:var(--gold-soft);color:var(--gold)}
+.mastery.low{background:var(--red-soft);color:var(--red)}
+.notes{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+
+/* answer / markdown */
+.md{min-width:0;overflow-wrap:anywhere}
+.md p{margin:0 0 10px}
+.md h3,.md h4,.md h5,.md h6{margin:14px 0 6px;font-size:17px}
+.md ul,.md ol{margin:0 0 10px;padding-left:22px}
+.md li{margin-bottom:4px}
+.md code{font-family:var(--f-mono);font-size:.9em;background:var(--green-soft);padding:1px 5px;border-radius:5px}
+.md pre{font-family:var(--f-mono);font-size:13px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;overflow-x:auto;white-space:pre;margin:0 0 10px}
+.md .tbl{overflow-x:auto;margin:0 0 10px;border:1px solid var(--line);border-radius:10px}
+.md table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+.md th,.md td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.md th{background:var(--green-soft);font-weight:700}
+.md tr:last-child td{border-bottom:0}
+.md hr{border:0;border-top:1px dashed var(--line);margin:12px 0}
+.thinking{display:inline-flex;gap:6px;align-items:center;color:var(--muted);font-style:italic}
+.dots i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:3px;animation:b 1s infinite}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,80%,100%{opacity:.25}40%{opacity:1}}
+
+/* quiz */
+.qcard{display:flex;flex-direction:column;gap:12px}
+.qtop{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.qprog{display:flex;gap:4px;flex:1}
+.qprog i{flex:1;height:6px;border-radius:9px;background:var(--line)}
+.qprog i.ok{background:var(--green)}.qprog i.bad{background:var(--red)}.qprog i.now{background:var(--gold)}
+.qtext{font-size:18px;font-weight:600}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:center;text-align:left;padding:12px;border-radius:12px;border:1.5px solid var(--line);background:var(--paper);width:100%}
+.opt .L{font-family:var(--f-mono);font-weight:700;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--bg)}
+.opt.ok{border-color:var(--green);background:var(--green-soft)}
+.opt.ok .L{background:var(--green);color:var(--on-green)}
+.opt.bad{border-color:var(--red);background:var(--red-soft)}
+.opt.bad .L{background:var(--red);color:#fff}
+.opt[disabled]{cursor:default}
+.fb{border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.fb.ok{background:var(--green-soft)}
+.fb.bad{background:var(--red-soft)}
+.fb h4{font-size:17px}
+.fb .lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.fixbox{border-left:3px solid var(--gold);padding-left:10px}
+
+/* chat */
+.chat{display:flex;flex-direction:column;gap:10px;min-height:40vh}
+.msg{max-width:92%;padding:10px 13px;border-radius:16px;min-width:0}
+.msg.me{align-self:flex-end;background:var(--green);color:var(--on-green);border-bottom-right-radius:4px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.ai{align-self:flex-start;background:var(--paper);border:1px solid var(--line);border-bottom-left-radius:4px;width:92%}
+.msg.ai .md p:last-child{margin-bottom:0}
+.msg .imgtag{display:block;font-size:12px;opacity:.85;margin-top:4px}
+.composer{position:sticky;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 4px);background:var(--bg);padding-block:8px;display:flex;flex-direction:column;gap:8px;z-index:5}
+.cbox{display:flex;gap:8px;align-items:flex-end;background:var(--paper);border:1.5px solid var(--line);border-radius:16px;padding:6px}
+.cbox textarea{flex:1;min-width:0;border:0;background:transparent;resize:none;padding:8px;max-height:140px;outline:none}
+.iconbtn{width:42px;height:42px;border-radius:12px;border:0;display:grid;place-items:center;background:var(--green-soft);color:var(--green);flex:none}
+.iconbtn.send{background:var(--green);color:var(--on-green)}
+.iconbtn svg{width:20px;height:20px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.chips .chip{white-space:nowrap;flex:none}
+.attach{display:flex;align-items:center;gap:8px;font-size:13px;background:var(--gold-soft);border-radius:10px;padding:6px 10px}
+.attach img{width:36px;height:36px;object-fit:cover;border-radius:6px}
+
+/* forms */
+textarea.field,input.field,select.field{width:100%;border:1.5px solid var(--line);border-radius:12px;background:var(--paper);padding:10px 12px}
+textarea.field{min-height:96px;resize:vertical;font-family:var(--f-body)}
+textarea.mono{font-family:var(--f-mono);font-size:14px}
+label.lab{font-weight:600;font-size:14px;display:block;margin-bottom:4px}
+
+/* badges */
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px}
+.badge{text-align:center;padding:12px 6px;border-radius:12px;border:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column;align-items:center;gap:4px}
+.badge .medal{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:16px;background:var(--line);color:var(--muted)}
+.badge.got .medal{background:var(--gold);color:#241800;box-shadow:0 0 0 3px var(--gold-soft)}
+.badge b{font-size:13px;line-height:1.2}
+.badge span{font-size:11px;color:var(--muted);line-height:1.25}
+
+/* game */
+.game{display:flex;flex-direction:column;gap:14px;align-items:stretch}
+.gcard{background:var(--paper);border:2px solid var(--line);border-radius:18px;padding:22px 18px;text-align:center;min-height:170px;display:flex;flex-direction:column;justify-content:center;gap:10px;transition:transform .15s}
+.gcard.flashok{border-color:var(--green);background:var(--green-soft)}
+.gcard.flashbad{border-color:var(--red);background:var(--red-soft);animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.gcard .acct{font-family:var(--f-mono);font-weight:600;font-size:15px;color:var(--green);background:var(--green-soft);align-self:center;padding:4px 10px;border-radius:8px}
+.gcard .tx{font-size:19px;font-weight:600}
+.dc{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dc .btn{min-height:72px;font-size:22px;font-family:var(--f-display)}
+.timer{height:10px;border-radius:9px;background:var(--line);overflow:hidden}
+.timer i{display:block;height:100%;background:var(--gold);transition:width .25s linear}
+.big{font-family:var(--f-display);font-size:44px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+
+/* nav */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--paper);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+nav.tabs .in{max-width:720px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);height:var(--nav-h)}
+nav.tabs button{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;font-weight:600;color:var(--muted)}
+nav.tabs button svg{width:24px;height:24px}
+nav.tabs button.on{color:var(--green)}
+nav.tabs button.on svg{stroke-width:2.4}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%) translateY(20px);bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 16px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:700;opacity:0;transition:.25s;z-index:40;pointer-events:none;max-width:calc(100% - 32px);text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.gold{background:var(--gold);color:#241800}
+.banner{background:var(--gold-soft);border:1px solid var(--gold);border-radius:12px;padding:10px 12px;font-size:14px}
+.linkcard{display:flex;flex-direction:column;gap:2px;padding:12px;border:1px solid var(--line);border-radius:12px;text-decoration:none;color:var(--ink);background:var(--paper)}
+.linkcard b{color:var(--blue)}
+.back{border:0;background:none;color:var(--green);font-weight:700;padding:4px 0;align-self:flex-start}
+.mistake{border-left:3px solid var(--red);padding:4px 0 4px 10px;display:flex;flex-direction:column;gap:4px}
+.part{border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-direction:column;gap:6px}
+.score{display:inline-block;font-family:var(--f-mono);font-weight:700;padding:2px 8px;border-radius:8px;background:var(--gold-soft);color:var(--gold)}
+
+/* ---- themes bought in the shop (accent family only) ---- */
+.th-carnival{--green:#6A2C9E;--green-2:#4B1D73;--green-soft:#EEE4F7}
+.th-maracas{--green:#0F6FA8;--green-2:#0B5480;--green-soft:#DDEEF8}
+.th-ibis{--green:#BF3A2B;--green-2:#8E2A20;--green-soft:#F9E0DC}
+.th-pan{--green:#3E5566;--green-2:#2B3D4A;--green-soft:#E2E9EE}
+@media (prefers-color-scheme: dark){
+ :root:not([data-theme="light"]) .th-carnival{--green:#B98AE6;--green-2:#4B2470;--green-soft:#2E1F40}
+ :root:not([data-theme="light"]) .th-maracas{--green:#5BB8EA;--green-2:#12507A;--green-soft:#16324A}
+ :root:not([data-theme="light"]) .th-ibis{--green:#F2857A;--green-2:#7E261D;--green-soft:#3D1E1B}
+ :root:not([data-theme="light"]) .th-pan{--green:#9DB4C4;--green-2:#2E4352;--green-soft:#1E2A33}}
+:root[data-theme="dark"] .th-carnival{--green:#B98AE6;--green-2:#4B2470;--green-soft:#2E1F40}
+:root[data-theme="dark"] .th-maracas{--green:#5BB8EA;--green-2:#12507A;--green-soft:#16324A}
+:root[data-theme="dark"] .th-ibis{--green:#F2857A;--green-2:#7E261D;--green-soft:#3D1E1B}
+:root[data-theme="dark"] .th-pan{--green:#9DB4C4;--green-2:#2E4352;--green-soft:#1E2A33}
+
+/* ---- header extras ---- */
+.avatarbtn{width:38px;height:38px;border-radius:50%;border:2px solid rgba(255,255,255,.5);background:rgba(255,255,255,.15);color:#fff;font-weight:800;font-size:18px;display:grid;place-items:center;flex:none;padding:0}
+.pill.coin{color:#FFE08A}
+.coinico{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#F4C84A;color:#5A3D00;font-size:10px;font-weight:800;font-family:var(--f-mono)}
+
+/* ---- debit / credit colour coding ---- */
+.dr{color:var(--dr)} .cr{color:var(--cr)}
+.tag-dr,.tag-cr{display:inline-flex;align-items:center;gap:4px;font-family:var(--f-mono);font-size:13px;font-weight:600;padding:3px 8px;border-radius:8px}
+.tag-dr{background:var(--dr-soft);color:var(--dr)} .tag-cr{background:var(--cr-soft);color:var(--cr)}
+.legend{display:flex;gap:8px;flex-wrap:wrap;font-size:12px}
+
+/* ---- visuals ---- */
+.vis{display:flex;flex-direction:column;gap:10px;min-width:0}
+.vis-title{font-family:var(--f-display);font-weight:600;font-size:16px}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.tacc{font-family:var(--f-mono);font-size:12px;font-variant-numeric:tabular-nums;min-width:0;background:var(--paper);border-radius:8px}
+.tacc .tn{text-align:center;font-weight:700;font-family:var(--f-body);font-size:13px;padding:3px 0;border-bottom:2px solid var(--ink)}
+.tacc .tb{display:grid;grid-template-columns:1fr 1fr}
+.tacc .side{display:flex;flex-direction:column;padding:4px 4px 6px;min-width:0}
+.tacc .side.d{border-right:2px solid var(--ink)}
+.tacc .sh{font-size:10px;font-weight:700;letter-spacing:.08em;margin-bottom:2px}
+.tacc .side.d .sh{color:var(--dr)} .tacc .side.c .sh{color:var(--cr);text-align:right}
+.tacc .e{display:flex;justify-content:space-between;gap:4px;padding:2px 3px;border-radius:4px}
+.tacc .e span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.tacc .side.d .e b{color:var(--dr)} .tacc .side.c .e b{color:var(--cr)}
+.tacc .e b{font-weight:600}
+.tacc .e.cd{color:var(--muted)}
+.tacc .e.tot{border-top:1px solid var(--ink);border-bottom:3px double var(--ink);border-radius:0;margin-top:2px}
+.tacc .e.bd{font-weight:700}
+.tacc .e.new{animation:pop 1.1s ease}
+.tacc .side.d .e.new{background:var(--dr-soft)} .tacc .side.c .e.new{background:var(--cr-soft)}
+@keyframes pop{0%{transform:translateY(-8px) scale(1.08);opacity:0}35%{opacity:1;transform:none}100%{}}
+.cap{background:var(--bg);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.cap .tx{font-weight:700}
+.stepper{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.dots2{display:flex;gap:4px}.dots2 i{width:8px;height:8px;border-radius:50%;background:var(--line)}.dots2 i.on{background:var(--green)}
+.flow{display:flex;flex-direction:column;align-items:stretch;gap:0}
+.flow .fs{border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--paper);display:flex;gap:10px;align-items:flex-start;transition:background .3s,border-color .3s}
+.flow .fs .n{font-family:var(--f-mono);font-weight:700;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--green-soft);color:var(--green);flex:none;font-size:12px}
+.flow .fs b{display:block}
+.flow .fs small{color:var(--muted);font-size:13px}
+.flow .fs.lit{border-color:var(--green);background:var(--green-soft)}
+.flow .fs.lit .n{background:var(--green);color:var(--on-green)}
+.flow .ar{height:18px;display:grid;place-items:center;color:var(--muted);font-size:14px;line-height:1}
+.ladder{display:flex;flex-direction:column;gap:6px;font-variant-numeric:tabular-nums}
+.lr{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto;gap:8px;align-items:center;transition:opacity .3s}
+.lr .ll{font-size:14px;min-width:0}
+.lr .lb{height:14px;border-radius:4px;background:var(--line);overflow:hidden}
+.lr .lb i{display:block;height:100%;border-radius:4px;transition:width .6s ease}
+.lr.pos .lb i{background:var(--dr)} .lr.neg .lb i{background:var(--cr)} .lr.tot .lb i{background:var(--green)}
+.lr .lv{font-family:var(--f-mono);font-size:13px;text-align:right;min-width:72px}
+.lr.neg .lv{color:var(--cr)} .lr.tot{border-top:1px solid var(--ink);padding-top:6px} .lr.tot .ll,.lr.tot .lv{font-weight:800}
+.lr.dim{opacity:.18} .lr.now .ll{font-weight:700}
+.eqbox{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:6px;align-items:center;text-align:center}
+.eqbox .ev{background:var(--bg);border-radius:10px;padding:8px 4px;min-width:0}
+.eqbox .ev b{display:block;font-family:var(--f-mono);font-size:14px;font-variant-numeric:tabular-nums}
+.eqbox .ev span{font-size:11px;color:var(--muted)}
+.eqbox .op{font-family:var(--f-display);font-weight:800;font-size:20px}
+.chg{display:block;font-family:var(--f-mono);font-size:11px;font-weight:700;min-height:15px}
+.chg.up{color:var(--green)} .chg.down{color:var(--red)}
+.eqbars{display:flex;flex-direction:column;gap:6px}
+.eqbar{height:22px;display:flex;border-radius:6px;overflow:hidden;background:var(--line)}
+.eqbar i{display:block;height:100%;transition:width .6s ease}
+.vbars{display:flex;align-items:flex-end;gap:10px;height:150px;padding-top:8px}
+.vbars .vb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;height:100%;min-width:0}
+.vbars .vb i{width:100%;max-width:44px;border-radius:6px 6px 2px 2px;transition:height .5s ease}
+.vbars .vb span{font-size:11px;font-family:var(--f-mono);color:var(--muted);white-space:nowrap}
+.seg{display:inline-flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:6px 12px;font-weight:700;font-size:13px}
+.seg button.on{background:var(--green);color:var(--on-green)}
+.units{display:flex;flex-wrap:wrap;gap:4px}
+.unit{width:28px;height:28px;border-radius:6px;display:grid;place-items:center;font-family:var(--f-mono);font-size:10px;font-weight:700;color:#fff;transition:opacity .4s,transform .4s}
+.unit.b1{background:var(--dr)} .unit.b2{background:var(--cr)} .unit.avg{background:var(--green)}
+.unit.sold{opacity:.15;transform:scale(.8)}
+.dcchart{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dcchart>div{border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:4px}
+.dcchart .d{background:var(--dr-soft)} .dcchart .c{background:var(--cr-soft)}
+.dcchart h4{font-size:15px} .dcchart .d h4{color:var(--dr)} .dcchart .c h4{color:var(--cr)}
+.dcchart big{font-family:var(--f-display);font-weight:800;font-size:22px;letter-spacing:.04em}
+.tbtable{font-family:var(--f-mono);font-size:13px;width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tbtable td,.tbtable th{padding:5px 6px;border-bottom:1px solid var(--line);text-align:right}
+.tbtable td:first-child,.tbtable th:first-child{text-align:left;font-family:var(--f-body)}
+.tbtable th.d,.tbtable td.d{color:var(--dr)} .tbtable th.c,.tbtable td.c{color:var(--cr)}
+.tbtable tr.tt td{border-top:2px solid var(--ink);border-bottom:3px double var(--ink);font-weight:800}
+
+/* ---- rewards ---- */
+.coinrow{display:flex;align-items:center;gap:10px}
+.coinbig{width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#FFE7A0,#E3A814 70%);display:grid;place-items:center;font-family:var(--f-display);font-weight:800;color:#5A3D00;font-size:20px;box-shadow:inset 0 -3px 0 rgba(0,0,0,.15)}
+.shop{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.item{border:1.5px solid var(--line);border-radius:14px;padding:12px;background:var(--paper);display:flex;flex-direction:column;gap:6px;align-items:flex-start;min-width:0}
+.item .ic{font-size:30px;line-height:1;height:36px;display:flex;align-items:center}
+.item .sw{width:36px;height:36px;border-radius:10px}
+.item b{font-size:14px;line-height:1.2}
+.item span{font-size:12px;color:var(--muted);line-height:1.3}
+.item.owned{border-color:var(--green)}
+.price{font-family:var(--f-mono);font-weight:700;font-size:13px;display:inline-flex;align-items:center;gap:4px}
+.empire{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.biz{border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:4px;border:1.5px dashed var(--line);min-width:0}
+.biz .ic{font-size:30px;line-height:1}
+.biz b{font-size:14px}
+.biz span{font-size:12px;color:var(--muted);line-height:1.3}
+.biz.on{border-style:solid;border-color:var(--gold);background:var(--gold-soft)}
+.biz.off .ic{filter:grayscale(1);opacity:.35}
+.rreward{display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:12px;background:var(--bg)}
+.rreward.ready{background:var(--gold-soft);border:1.5px solid var(--gold)}
+.pinpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:260px}
+.pinpad button{min-height:52px;border-radius:12px;border:1.5px solid var(--line);background:var(--paper);font-size:20px;font-weight:700}
+.pindots{display:flex;gap:10px;justify-content:center;margin:6px 0}
+.pindots i{width:14px;height:14px;border-radius:50%;border:2px solid var(--green)}
+.pindots i.on{background:var(--green)}
+
+/* ---- modal ---- */
+.modal{position:fixed;inset:0;z-index:50;background:rgba(5,15,12,.6);display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.modal .box{background:var(--paper);border-radius:20px;padding:22px;max-width:380px;width:100%;text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center;animation:rise .35s ease}
+@keyframes rise{from{transform:translateY(20px) scale(.96);opacity:0}}
+.chest{font-size:84px;line-height:1;cursor:pointer;border:0;background:none;animation:wob 1.2s infinite}
+@keyframes wob{0%,100%{transform:rotate(0)}20%{transform:rotate(-8deg)}40%{transform:rotate(8deg)}60%{transform:rotate(-4deg)}}
+.prize{font-size:64px;line-height:1;animation:rise .4s ease}
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden}
+.confetti i{position:absolute;top:-12px;width:8px;height:14px;border-radius:2px;animation:fall 1.8s ease-in forwards}
+@keyframes fall{to{transform:translateY(105vh) rotate(540deg)}}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:380px){.grid2{grid-template-columns:1fr}.hero h2{font-size:23px}}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <button class="avatarbtn" id="hdrAv" aria-label="My progress"></button>
+    <div class="brand">Ledger Up</div>
+    <span class="pill flame" id="hdrStreak" title="Day streak"></span>
+    <span class="pill coin" id="hdrCoins" title="Coins"></span>
+  </div>
+  <div class="xpbar"><i id="hdrBar" style="width:0%"></i></div>
+</header>
+
+<main class="wrap"><div id="view" class="view"></div></main>
+
+<nav class="tabs" aria-label="Sections"><div class="in" id="tabs"></div></nav>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div id="modalRoot"></div>
+<input type="file" id="fileIn" accept="image/*" hidden>
+
+<script>
+/* =================== CONTENT =================== */
+const SECTIONS = [
+  {id:"s1", name:"Getting started"},
+  {id:"s2", name:"Recording transactions"},
+  {id:"s3", name:"Checking the books"},
+  {id:"s4", name:"Financial statements"},
+  {id:"s5", name:"Other types of organisation"},
+];
+const TOPICS = [
+ {id:"intro",sec:"s1",name:"Introduction to Accounting",short:"Purpose of accounting, users of accounts, and accounting concepts",
+  notes:["Bookkeeping records transactions; accounting summarises, analyses and explains them.","Users include owners, managers, banks (e.g. Republic Bank, First Citizens), suppliers, BIR/tax authorities and employees.","Key concepts: business entity, going concern, consistency, prudence, accruals (matching), materiality, historical cost, dual aspect.","Business entity: the owner and the business are kept separate, even for a one-man doubles stand."]},
+ {id:"equation",sec:"s1",name:"The Accounting Equation",short:"Assets = Capital + Liabilities and how transactions change it",
+  notes:["Assets = Capital + Liabilities. So Capital = Assets − Liabilities.","Every transaction changes at least two items, and the equation always stays balanced.","Capital only changes when the owner puts in or takes out resources, or when the business makes a profit or loss.","Practise: show the effect of each transaction in a table of + and − columns."]},
+ {id:"sourcedocs",sec:"s2",name:"Source Documents & Books of Original Entry",short:"Invoices, credit notes, receipts and the journals they go into",
+  notes:["Invoice → Sales Journal (sent) or Purchases Journal (received). Only goods for resale on credit go here.","Credit note sent → Returns Inwards (Sales Returns) Journal. Credit note received → Returns Outwards Journal.","Receipts and cheque counterfoils → Cash Book.","Anything else (non-current assets on credit, corrections, opening entries) → General Journal, with a narration."]},
+ {id:"doubleentry",sec:"s2",name:"Double Entry & the Ledger",short:"Debit and credit rules, posting and balancing accounts",
+  notes:["DEAD CLIC: Debit increases Expenses, Assets, Drawings. Credit increases Liabilities, Income, Capital.","Every debit has a matching credit for the same amount.","To balance: add the bigger side, put the difference on the smaller side as 'Balance c/d', then bring it down on the other side as 'Balance b/d'.","Sales ledger = customers (debtors). Purchases ledger = suppliers (creditors). General ledger = everything else."]},
+ {id:"cashbook",sec:"s2",name:"Cash Book & Petty Cash",short:"Two and three-column cash books, discounts, imprest system",
+  notes:["The cash book is both a book of original entry and a ledger account for cash and bank.","Three-column: Discount, Cash, Bank. Discount allowed on the debit side, discount received on the credit side.","Contra entries: cash paid into bank appears on both sides (marked 'C').","Imprest system: petty cashier starts each period with a fixed float; reimbursement = amount spent."]},
+ {id:"trialbalance",sec:"s2",name:"Trial Balance & Correcting Errors",short:"Preparing a trial balance, the six errors it misses, suspense accounts",
+  notes:["Debit balances = assets, expenses, drawings. Credit balances = capital, liabilities, income.","Errors NOT shown by a trial balance: omission, commission, principle, original entry, complete reversal, compensating.","If the totals disagree, put the difference in a Suspense account, then clear it with journal entries as errors are found.","Correct errors with General Journal entries and a narration."]},
+ {id:"bankrec",sec:"s3",name:"Bank Reconciliation",short:"Updating the cash book and reconciling with the bank statement",
+  notes:["Step 1: update the cash book with items only on the bank statement (bank charges, standing orders, credit transfers, dishonoured cheques).","Step 2: prepare the statement starting from the updated cash book balance.","Add unpresented cheques; subtract lodgements (deposits) not yet credited.","Remember: the bank statement is from the bank's view, so a debit balance there is an overdraft."]},
+ {id:"control",sec:"s3",name:"Control Accounts",short:"Sales and purchases ledger control accounts",
+  notes:["A control account checks the accuracy of a whole ledger with one total account.","Sales Ledger Control: debit side has opening debtors, credit sales, dishonoured cheques; credit side has cash/cheques received, discounts allowed, returns inwards, bad debts, set-offs.","Purchases Ledger Control is the mirror image.","Cash sales and cash purchases never go in a control account."]},
+ {id:"finalaccounts",sec:"s4",name:"Income Statement & Statement of Financial Position",short:"Final accounts of a sole trader",
+  notes:["Cost of sales = opening inventory + net purchases + carriage inwards − closing inventory.","Gross profit = net sales − cost of sales. Net profit = gross profit + other income − expenses.","Statement of Financial Position: non-current assets, current assets, current liabilities, non-current liabilities, then capital + net profit − drawings.","Carriage inwards goes in cost of sales; carriage outwards is an expense."]},
+ {id:"adjustments",sec:"s4",name:"Adjustments: Accruals, Prepayments, Depreciation, Bad Debts",short:"Year-end adjustments to final accounts",
+  notes:["Accrued expense: add to the expense; show as a current liability.","Prepaid expense: subtract from the expense; show as a current asset.","Straight-line depreciation = (cost − residual value) ÷ useful life. Reducing balance = rate × net book value.","Bad debts are an expense. A provision for doubtful debts is deducted from trade receivables; only the increase or decrease goes to the income statement."]},
+ {id:"inventory",sec:"s4",name:"Inventory Valuation",short:"FIFO, AVCO and lower of cost and net realisable value",
+  notes:["FIFO: the first items bought are the first sold, so closing inventory is valued at the latest prices.","AVCO (weighted average): recalculate the average cost after each purchase.","Inventory is valued at the lower of cost and net realisable value (prudence).","Different methods give different profits, so be consistent from year to year."]},
+ {id:"ratios",sec:"s4",name:"Interpreting Accounts (Ratios)",short:"Profitability and liquidity ratios",
+  notes:["Gross profit margin = GP ÷ net sales × 100. Net profit margin = NP ÷ net sales × 100.","Current ratio = current assets : current liabilities. Acid test = (current assets − inventory) : current liabilities.","Return on capital employed (ROCE) = net profit ÷ capital employed × 100.","Rate of inventory turnover = cost of sales ÷ average inventory."]},
+ {id:"partnership",sec:"s5",name:"Partnerships",short:"Appropriation account, capital and current accounts",
+  notes:["The appropriation account shares out net profit: add interest on drawings, take off interest on capital and partners' salaries, then share the rest in the profit-sharing ratio.","With no partnership agreement: share profits equally, no interest on capital, no salaries, 5% interest on partners' loans.","Fixed capital accounts plus current accounts for each partner.","Partners' salaries are NOT an expense; they go in the appropriation account."]},
+ {id:"companies",sec:"s5",name:"Limited Liability Companies",short:"Shares, debentures, dividends and company accounts",
+  notes:["Ordinary shareholders own the company and get variable dividends.","Preference shareholders get a fixed dividend before ordinary shareholders.","Debenture holders are lenders: they receive interest (an expense), not dividends.","Retained earnings are profits kept in the business after dividends."]},
+ {id:"npo",sec:"s5",name:"Non-Profit Organisations",short:"Clubs and societies: receipts and payments, income and expenditure",
+  notes:["Receipts and Payments account = summary of cash in and out (like a cash book).","Income and Expenditure account = the club's version of an income statement; result is a surplus or deficit.","Accumulated fund = the club's capital.","Subscriptions: adjust for amounts in arrears and in advance."]},
+ {id:"manufacturing",sec:"s5",name:"Manufacturing Accounts",short:"Prime cost, factory overheads and cost of production",
+  notes:["Prime cost = direct materials + direct labour + direct expenses.","Add factory overheads (indirect costs such as factory rent, supervisor wages).","Adjust for work in progress: + opening WIP − closing WIP = cost of production.","Cost of production then replaces purchases in the trading section."]},
+ {id:"payroll",sec:"s5",name:"Payroll",short:"Gross pay, deductions and net pay",
+  notes:["Gross pay can come from time rates, overtime, piece rates or commission.","Statutory deductions are required by law. In Trinidad and Tobago: NIS, PAYE income tax and Health Surcharge.","Voluntary deductions: union dues, credit union, insurance.","Net pay = gross pay − total deductions."]},
+ {id:"incomplete",sec:"s5",name:"Incomplete Records",short:"Statement of affairs and finding profit without full books",
+  notes:["Statement of affairs: assets − liabilities = capital at a date.","Net profit = closing capital − opening capital + drawings − capital introduced.","Use control-style accounts to find missing figures such as credit sales or purchases.","Use mark-up and margin to find missing sales or cost of sales."]},
+];
+const TOPIC = Object.fromEntries(TOPICS.map(t=>[t.id,t]));
+
+/* Built-in question bank: used for the daily challenge and when the AI is unavailable */
+const BANK = [
+ {t:"intro",q:"Which concept says the owner's personal spending must be kept out of the business records?",o:["Going concern","Business entity","Consistency","Prudence"],a:1,why:"The business entity concept treats the business as separate from its owner. If Keisha pays her personal phone bill, it is not an expense of her roti shop.",trap:"Going concern is about assuming the business will keep running into the future, not about separating the owner."},
+ {t:"intro",q:"A business values closing inventory at cost instead of its higher selling price. Which concept is this?",o:["Prudence","Accruals","Materiality","Dual aspect"],a:0,why:"Prudence means you do not overstate assets or profit. Inventory is shown at the lower of cost and net realisable value.",trap:"Accruals is about matching income and expenses to the period they belong to."},
+ {t:"equation",q:"Ravi's Hardware has assets of $85,000 and liabilities of $23,000. What is the capital?",o:["$108,000","$62,000","$23,000","$85,000"],a:1,why:"Capital = Assets − Liabilities = $85,000 − $23,000 = $62,000.",trap:"Adding gives $108,000. The equation is A = C + L, so to find capital you subtract liabilities from assets."},
+ {t:"equation",q:"A business buys equipment on credit from Massy Machinery. The effect is:",o:["Assets up, capital up","Assets up, liabilities up","Assets down, liabilities up","Assets up, capital down"],a:1,why:"Equipment is an asset, so assets rise. The business now owes Massy Machinery, so liabilities rise by the same amount.",trap:"Capital only changes when the owner invests or withdraws, or when there is a profit or loss."},
+ {t:"sourcedocs",q:"Which document is used to write up the Returns Inwards (Sales Returns) Journal?",o:["Invoices sent to customers","Credit notes sent to customers","Debit notes received","Receipts"],a:1,why:"When a customer returns goods, the business sends them a credit note. Those credit notes are listed in the Returns Inwards Journal.",trap:"Invoices sent go in the Sales Journal, not the returns journal."},
+ {t:"sourcedocs",q:"Which book of original entry records the purchase of a delivery van on credit?",o:["Purchases Journal","Cash Book","General Journal","Sales Journal"],a:2,why:"The Purchases Journal is only for goods bought for resale on credit. A van is a non-current asset, so it goes in the General Journal.",trap:"Students see 'on credit' and choose the Purchases Journal. Always ask: is this stock for resale?"},
+ {t:"doubleentry",q:"Ali, a doubles vendor, pays rent of $1,200 in cash. The double entry is:",o:["Dr Cash, Cr Rent","Dr Rent, Cr Cash","Dr Rent, Cr Capital","Dr Capital, Cr Cash"],a:1,why:"Rent is an expense: expenses increase on the debit side. Cash (an asset) goes down, so credit Cash.",trap:"Many students debit Cash because 'cash is involved'. Ask which account increases and which decreases."},
+ {t:"doubleentry",q:"Goods are sold on credit to Sasha for $3,000. Which entry is correct?",o:["Dr Sales, Cr Sasha","Dr Sasha, Cr Sales","Dr Sasha, Cr Purchases","Dr Purchases, Cr Sasha"],a:1,why:"Sasha now owes the business, so she is a debtor (asset): debit Sasha. Sales are income: credit Sales.",trap:"Reversing the entry is the most common mistake. Income always increases on the credit side."},
+ {t:"doubleentry",q:"An account has debits totalling $9,400 and credits totalling $6,100. What is the balance brought down?",o:["$3,300 debit","$3,300 credit","$15,500 debit","$9,400 debit"],a:0,why:"The debit side is bigger by $9,400 − $6,100 = $3,300. 'Balance c/d' goes on the credit side to make both sides equal, then 'Balance b/d' comes down on the debit side.",trap:"Seeing c/d written on the credit side makes students think it is a credit balance. The b/d side is the real balance."},
+ {t:"cashbook",q:"In a three-column cash book, discount allowed is recorded on the:",o:["Debit side","Credit side","Bank column only","General Journal only"],a:0,why:"Discount allowed is given to customers who pay us, so it sits on the debit (receipts) side next to that receipt. The column total is debited to Discount Allowed.",trap:"Discount received goes on the credit side, next to payments to suppliers."},
+ {t:"cashbook",q:"A petty cash imprest is $800. At the end of the month $135 is left. How much is reimbursed?",o:["$800","$935","$665","$135"],a:2,why:"Reimbursement equals the amount spent: $800 − $135 = $665. That brings the float back to $800.",trap:"Do not reimburse the full imprest or the balance left. Top up only what was spent."},
+ {t:"trialbalance",q:"Rent paid of $500 was debited to the Rates account. This is an error of:",o:["Principle","Commission","Omission","Original entry"],a:1,why:"Rent and Rates are both expense accounts. Posting to the wrong account of the same type is an error of commission.",trap:"An error of principle is posting to the wrong TYPE of account, such as treating an asset as an expense."},
+ {t:"trialbalance",q:"Which error WILL make the trial balance totals disagree?",o:["Error of omission","Compensating error","Purchases debited $400, supplier credited $40","Complete reversal of entries"],a:2,why:"If the two sides of the entry are for different amounts, the debit and credit totals no longer match, so the trial balance will not agree.",trap:"Omission and reversal still affect both sides equally, so the totals still agree."},
+ {t:"trialbalance",q:"The credit column of a trial balance is $250 more than the debit column. The suspense account is opened with:",o:["A debit of $250","A credit of $250","A debit of $500","A credit of $125"],a:0,why:"The debit side is short by $250, so you put $250 on the debit side in a Suspense account to make the totals agree.",trap:"Put the difference on the SHORT side, not the bigger one."},
+ {t:"bankrec",q:"A cheque for $1,500 sent to a supplier has not yet been presented. Starting from the cash book balance, you:",o:["Add it","Subtract it","Ignore it","Enter it in the cash book again"],a:0,why:"The cash book already took the money out, but the bank has not. So the bank balance is higher: add unpresented cheques to the cash book balance.",trap:"Students subtract it because it is a payment. Think about which record is missing the item."},
+ {t:"bankrec",q:"Bank charges of $60 appear only on the bank statement. What do you do first?",o:["Credit the bank column of the cash book","Debit the cash book","Add it in the reconciliation","Ignore it"],a:0,why:"Bank charges reduce the money in the bank. Update the cash book first by crediting the bank column with $60.",trap:"Items that only the bank knows about go into the cash book, not into the reconciliation statement."},
+ {t:"control",q:"Which item goes on the CREDIT side of a Sales Ledger Control Account?",o:["Credit sales","Dishonoured cheques","Cash received from debtors","Opening debit balance"],a:2,why:"Money received from customers reduces what they owe, so it is credited, just as it would be in each customer's account.",trap:"Dishonoured cheques increase what debtors owe again, so they go on the debit side."},
+ {t:"finalaccounts",q:"Sales $120,000, returns inwards $5,000, cost of sales $70,000. Gross profit is:",o:["$50,000","$45,000","$55,000","$115,000"],a:1,why:"Net sales = $120,000 − $5,000 = $115,000. Gross profit = $115,000 − $70,000 = $45,000.",trap:"Forgetting to deduct returns inwards gives $50,000."},
+ {t:"finalaccounts",q:"Cost of sales is calculated as:",o:["Opening inventory + purchases − closing inventory","Purchases − sales","Opening inventory − purchases + closing inventory","Sales − gross profit + expenses"],a:0,why:"Start with what you had, add what you bought, and take away what is left. (Also add carriage inwards and deduct returns outwards from purchases.)",trap:"Mixing up opening and closing inventory signs is the usual slip."},
+ {t:"finalaccounts",q:"Which of these is a current liability?",o:["Bank loan repayable in 5 years","Trade payables","Motor vehicles","Capital"],a:1,why:"Trade payables (creditors) must be paid within a year, so they are a current liability.",trap:"A loan repayable after more than a year is a non-current liability."},
+ {t:"adjustments",q:"A van cost $90,000, has a residual value of $10,000 and a useful life of 4 years. Straight-line depreciation per year is:",o:["$22,500","$20,000","$25,000","$10,000"],a:1,why:"($90,000 − $10,000) ÷ 4 = $80,000 ÷ 4 = $20,000 a year.",trap:"Forgetting to take off the residual value gives $22,500."},
+ {t:"adjustments",q:"Rent paid during the year was $11,000 and $1,000 is still owing at year end. The Income Statement charge is:",o:["$10,000","$11,000","$12,000","$1,000"],a:2,why:"The expense for the year is what was paid plus what is owing: $11,000 + $1,000 = $12,000.",trap:"Subtracting the accrual gives $10,000. Owing means the year used more than was paid."},
+ {t:"adjustments",q:"Insurance of $6,000 covers 12 months from 1 October. The year ends 31 December. The prepayment at year end is:",o:["$1,500","$4,500","$6,000","$500"],a:1,why:"Only Oct–Dec (3 months) belong to this year. The other 9 months are prepaid: $6,000 × 9/12 = $4,500.",trap:"$1,500 is the part used this year (the expense), not the prepayment."},
+ {t:"inventory",q:"Bought 10 units at $5, then 10 units at $6. Sold 12 units. Using FIFO, closing inventory is valued at:",o:["$40","$48","$44","$60"],a:1,why:"FIFO sells the first 10 at $5 and 2 at $6. The 8 left are from the later batch: 8 × $6 = $48.",trap:"Valuing the remaining units at the older price gives $40. FIFO leaves the newest prices in closing inventory."},
+ {t:"ratios",q:"Current assets are $36,000 and current liabilities are $12,000. The current ratio is:",o:["3 : 1","1 : 3","2 : 1","4 : 1"],a:0,why:"Current ratio = current assets ÷ current liabilities = $36,000 ÷ $12,000 = 3, written 3 : 1.",trap:"Putting liabilities first gives 1 : 3. Assets always come first."},
+ {t:"partnership",q:"If there is no partnership agreement, profits are shared:",o:["In the ratio of capitals","Equally","By hours worked","60 : 40 to the senior partner"],a:1,why:"Without an agreement the law (Partnership Act rules) says profits and losses are shared equally.",trap:"Many students assume capital ratio. That only applies if the agreement says so."},
+ {t:"partnership",q:"In the appropriation account, interest on drawings is:",o:["Added to the profit available","Deducted from profit","Debited to the capital account","Ignored"],a:0,why:"Interest on drawings is charged to partners, so the business gains it: it is added to the profit to be shared.",trap:"Interest on capital is the one deducted. Do not mix the two up."},
+ {t:"companies",q:"Which group gets a fixed dividend before ordinary shareholders are paid?",o:["Preference shareholders","Ordinary shareholders","Debenture holders","Directors"],a:0,why:"Preference shares carry a fixed rate of dividend that is paid before any ordinary dividend.",trap:"Debenture holders receive interest, not dividends, because they are lenders, not owners."},
+ {t:"npo",q:"The capital of a club or society is called the:",o:["Accumulated fund","Retained earnings","Share capital","Current account"],a:0,why:"Non-profit organisations have no owner, so their capital is called the accumulated fund.",trap:"Retained earnings belong to companies."},
+ {t:"npo",q:"Which club account is a summary of all cash received and paid?",o:["Income and Expenditure account","Receipts and Payments account","Statement of affairs","Appropriation account"],a:1,why:"The Receipts and Payments account summarises cash, like a cash book, and ends with the cash balance.",trap:"The Income and Expenditure account uses the accruals concept and ends in a surplus or deficit."},
+ {t:"manufacturing",q:"Prime cost is:",o:["Direct materials + direct labour + direct expenses","Prime cost + factory overheads","All factory costs plus WIP","Sales minus cost of sales"],a:0,why:"Prime cost is the total of all DIRECT costs of production.",trap:"Adding factory overheads takes you past prime cost toward cost of production."},
+ {t:"payroll",q:"In Trinidad and Tobago, which is a statutory deduction from gross pay?",o:["Union dues","NIS contribution","Credit union savings","Bonus"],a:1,why:"Statutory means required by law. NIS, PAYE and Health Surcharge are statutory.",trap:"Union dues and credit union savings are voluntary deductions. A bonus is added to pay, not deducted."},
+ {t:"incomplete",q:"Opening capital $40,000, closing capital $55,000, drawings $8,000, no new capital. Net profit is:",o:["$15,000","$23,000","$7,000","$103,000"],a:1,why:"Profit = closing capital − opening capital + drawings = $55,000 − $40,000 + $8,000 = $23,000.",trap:"$15,000 forgets to add back drawings. Drawings reduced capital, so the profit was bigger than the increase."},
+];
+
+/* Debit or Credit game */
+const GAME = [
+ ["Cash sales of $500","Cash","D"],["Cash sales of $500","Sales","C"],
+ ["Bought goods on credit from Ramdass Ltd","Ramdass Ltd","C"],["Bought goods on credit from Ramdass Ltd","Purchases","D"],
+ ["Owner put $10,000 into the business bank account","Capital","C"],["Owner put $10,000 into the business bank account","Bank","D"],
+ ["Paid the T&TEC electricity bill by cheque","Electricity","D"],["Paid the T&TEC electricity bill by cheque","Bank","C"],
+ ["Owner took $300 cash for personal use","Drawings","D"],["Customer Keisha returned goods","Returns Inwards","D"],
+ ["Customer Keisha returned goods","Keisha","C"],["Returned faulty goods to supplier Jaleel","Returns Outwards","C"],
+ ["Returned faulty goods to supplier Jaleel","Jaleel","D"],["Received commission in cash","Commission Received","C"],
+ ["Took a loan from Republic Bank","Loan – Republic Bank","C"],["Bought a delivery van by cheque","Motor Vehicles","D"],
+ ["Allowed a discount to a customer","Discount Allowed","D"],["Received a discount from a supplier","Discount Received","C"],
+ ["Paid wages in cash","Wages","D"],["Customer Marcus paid his debt by cheque","Marcus","C"],
+ ["Sold an old display fridge for cash","Cash","D"],["Wrote off Darren's debt as bad","Bad Debts","D"],
+ ["Wrote off Darren's debt as bad","Darren","C"],["Bank charged interest on the overdraft","Bank","C"],
+ ["Received rent from a tenant upstairs","Rent Received","C"],["Paid supplier Chen Brothers by cheque","Chen Brothers","D"],
+ ["Bought stationery out of petty cash","Petty Cash","C"],["Repaid part of the bank loan","Loan","D"],
+ ["Bought shop fittings on credit from Furniture World","Furniture World","C"],["Paid insurance for the shop by cash","Insurance","D"],
+];
+
+const LEVELS = ["Petty Cash Clerk","Junior Bookkeeper","Ledger Clerk","Accounts Assistant","Cashier Supervisor","Senior Bookkeeper","Accountant","Chief Accountant","Financial Controller","Finance Director"];
+const BADGES = [
+ {id:"first",n:"First Entry",d:"Finish your first quiz",m:"1"},
+ {id:"perfect",n:"Balanced Books",d:"Score 100% on a quiz",m:"✓"},
+ {id:"streak3",n:"On a Roll",d:"3-day streak",m:"3"},
+ {id:"streak7",n:"Week Strong",d:"7-day streak",m:"7"},
+ {id:"streak30",n:"Unstoppable",d:"30-day streak",m:"30"},
+ {id:"daily5",n:"Daily Grinder",d:"5 daily challenges",m:"D"},
+ {id:"curious",n:"Curious Mind",d:"Ask the tutor 20 questions",m:"?"},
+ {id:"paper2",n:"Paper 2 Ready",d:"Get 3 long questions marked",m:"P2"},
+ {id:"game",n:"Quick Fingers",d:"Score 15+ in Debit or Credit",m:"Dr"},
+ {id:"master5",n:"Topic Master",d:"80%+ in 5 topics",m:"5"},
+ {id:"allround",n:"All-Rounder",d:"Try a quiz in every section",m:"A"},
+ {id:"xp1000",n:"Grand Total",d:"Earn 1,000 XP",m:"1k"},
+ {id:"photo",n:"Show Your Work",d:"Send a photo of your working",m:"📷"},
+ {id:"fixer",n:"Error Fixer",d:"Review your mistakes with the tutor",m:"Fx"},
+];
+
+const MODEL = "claude-opus-5-5";
+const ONLINE_URL = "https://claude.ai/artifact/EzS165YpcEkoRDhXs5LRMm";
+const STANDALONE = !window.claude;
+const COACH_MODE = !STANDALONE;            /* inside Claude: Coach only, points are sent to the main app */
+const APP_URL = "https://poa.tidyassistant.com";
+const CLAIM_KEY = "ledgerup-k7";
+function coachLink(t){ t = t || (tab==="topics"&&sub) || chatTopic; return ONLINE_URL + (t && TOPIC[t] ? "#"+t : ""); }
+const DAILY_GOAL = 50;
+const EXAM_DATE = "2028-05-01";
+const LINKS = [
+ {u:"https://caribbeans.ai/csec-past-papers",n:"Caribbean AI: CSEC past papers",d:"Free sign-up. Open a POA paper, then snap or type a question here."},
+ {u:"https://www.cxc.org/subject/principles-of-accounts-csec/",n:"CXC: Principles of Accounts",d:"The official subject page and syllabus."},
+ {u:"https://www.cxc.org/wp-content/uploads/2018/11/RPT2025CSECJanuaryPrinciplesofAccountsSubjectReport.pdf",n:"CXC examiners' report (Jan 2025)",d:"What examiners say students got wrong. Great for spotting traps."},
+];
+
+/* =================== STATE =================== */
+const KEY = "ledgerup.poa.v1";
+const DEF = () => ({v:1,name:"",xp:0,days:{},streak:0,best:0,last:null,topics:{},mistakes:[],badges:{},
+  n:{quiz:0,perfect:0,daily:0,tutor:0,structured:0,lesson:0,photo:0,review:0},game:{best:0},daily:null,lastTopic:null,lessonDay:{},
+  coins:0,owned:{},theme:null,avatar:null,coachStyle:null,freezes:0,chestDay:null,parent:{pin:null,rewards:[]},shopTab:"theme"});
+let S = DEF();
+try{ const raw = localStorage.getItem(KEY); if(raw) S = Object.assign(DEF(), JSON.parse(raw)); }catch(e){}
+let cloudDoc = null, saveT = null;
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){}
+  if(cloudDoc){ clearTimeout(saveT); saveT = setTimeout(()=>{ cloudDoc.set({state:JSON.stringify(S), xp:S.xp, at:Date.now()}).catch(()=>{}); }, 1500); }
+}
+async function initCloud(){
+  try{
+    if(!window.claude?.use) return;
+    const [db,user] = await Promise.all([claude.use("db"), claude.use("user")]);
+    if(!db || !user) return;
+    const id = await user.id(); if(!id) return;
+    cloudDoc = db.collection("data/users/"+id).doc("progress");
+    const snap = await cloudDoc.get();
+    if(snap.exists){
+      const remote = JSON.parse(snap.data().state || "{}");
+      if((remote.xp||0) > S.xp || (!S.name && remote.name)){ S = Object.assign(DEF(), remote); try{localStorage.setItem(KEY, JSON.stringify(S));}catch(e){} render(); }
+      else if(S.xp > (remote.xp||0)) save();
+    } else if(S.xp>0 || S.name) save();
+  }catch(e){ /* stay on this device's copy */ }
+}
+
+const pad = n => String(n).padStart(2,"0");
+const dstr = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const today = () => dstr(new Date());
+const yesterday = () => { const d=new Date(); d.setDate(d.getDate()-1); return dstr(d); };
+function gapDays(a){ if(!a) return 999; const [y,m,d]=a.split("-").map(Number); const t=new Date(); const x=new Date(y,m-1,d); t.setHours(0,0,0,0); return Math.round((t-x)/86400000); }
+function liveStreak(){ const g=gapDays(S.last); return g<=1 || (g-1)<=(S.freezes||0) ? S.streak : 0; }
+function levelOf(xp){ let L=1; while(50*L*(L+1) <= xp) L++; return L; }
+function levelFloor(L){ return 50*(L-1)*L; }
+function levelName(L){ return LEVELS[Math.min(L-1, LEVELS.length-1)]; }
+
+function pendingCounts(){ const b=S.pendBase||{}; return {t:Math.max(0,(S.n.tutor||0)-(b.tutor||0)), s:Math.max(0,(S.n.structured||0)-(b.structured||0)), p:Math.max(0,(S.n.photo||0)-(b.photo||0))}; }
+function claimURL(){ const x=S.pendXP||0, c=pendingCounts(), id=(S.claimId ||= Math.random().toString(36).slice(2,8)); const chk=hashStr(`${x}|${c.t}|${c.s}|${c.p}|${id}|${CLAIM_KEY}`)%100000; return `${APP_URL}/#claim-x${x}t${c.t}s${c.s}p${c.p}-${id}-${chk}`; }
+function markClaimSent(){ S.pendXP=0; S.pendBase={tutor:S.n.tutor,structured:S.n.structured,photo:S.n.photo}; S.claimId=null; save(); renderHeader(); }
+function handleClaim(){
+  const m = location.hash.match(/^#claim-x(\d+)t(\d+)s(\d+)p(\d+)-([a-z0-9]+)-(\d+)$/); if(!m || COACH_MODE) return;
+  try{ history.replaceState(null,"",location.pathname); }catch(e){ location.hash=""; }
+  const [_,x,t,s2,p,id,chk] = m; S.claimed ||= {};
+  if(String(hashStr(`${x}|${t}|${s2}|${p}|${id}|${CLAIM_KEY}`)%100000)!==chk){ toast("That points link didn't work."); return; }
+  if(S.claimed[id]){ toast("Those Coach points were already added."); return; }
+  S.claimed[id]=today(); const keys=Object.keys(S.claimed); if(keys.length>60) delete S.claimed[keys[0]];
+  S.n.tutor+=+t; S.n.structured+=+s2; S.n.photo+=+p;
+  if(+x>0) addXP(Math.min(+x,1000), "from Coach"); else { checkBadges(); save(); toast("Coach activity added"); }
+}
+function addXP(n, why){
+  if(n<=0) return;
+  if(COACH_MODE){ S.pendXP=(S.pendXP||0)+n; save(); renderHeader(); toast(`+${n} XP · add it to Ledger Up when you're done`); return; }
+  const before = levelOf(S.xp);
+  S.xp += n;
+  S.coins += n;
+  const t = today(); const prevDay = S.days[t]||0; S.days[t] = prevDay + n;
+  if(S.last !== t){ const g=gapDays(S.last);
+    if(g===1) S.streak++;
+    else if(g>1 && g<900 && (g-1)<=(S.freezes||0)){ S.freezes-=(g-1); S.streak++; setTimeout(()=>toast(`A streak freeze saved your ${S.streak-1}-day streak!`, true),1200); }
+    else S.streak = 1;
+    S.last = t; S.best = Math.max(S.best, S.streak); }
+  const after = levelOf(S.xp);
+  if(after>before){ S.coins += 50; queueModal(()=>showLevelUp(after)); }
+  if(prevDay < DAILY_GOAL && S.days[t] >= DAILY_GOAL && S.chestDay!==t) queueModal(showChest);
+  checkBadges(); checkParentGoals();
+  save(); renderHeader();
+  toast(`+${n} XP · ${why}`);
+}
+function award(id){
+  if(S.badges[id]) return;
+  S.badges[id] = today(); S.coins += 25;
+  const b = BADGES.find(x=>x.id===id);
+  queueModal(()=>showBadge(b));
+}
+function checkBadges(){
+  const st = liveStreak();
+  if(S.n.quiz>=1) award("first");
+  if(S.n.perfect>=1) award("perfect");
+  if(st>=3) award("streak3"); if(st>=7) award("streak7"); if(st>=30) award("streak30");
+  if(S.n.daily>=5) award("daily5");
+  if(S.n.tutor>=20) award("curious");
+  if(S.n.structured>=3) award("paper2");
+  if((S.game.best||0)>=15) award("game");
+  if(Object.values(S.topics).filter(t=>(t.best||0)>=80).length>=5) award("master5");
+  const secs = new Set(Object.keys(S.topics).filter(k=>S.topics[k].attempts).map(k=>TOPIC[k]?.sec));
+  if(SECTIONS.every(s=>secs.has(s.id))) award("allround");
+  if(S.xp>=1000) award("xp1000");
+  if(S.n.photo>=1) award("photo");
+  if(S.n.review>=1) award("fixer");
+}
+function topicStat(id){ return S.topics[id] || (S.topics[id] = {best:0,attempts:0,lessons:0,wrong:0}); }
+function mastery(id){ const t=S.topics[id]; if(!t) return null; if(!t.attempts) return t.lessons? 10 : null; return t.best; }
+function weakTopics(n=3){
+  return TOPICS.map(t=>({t, s:S.topics[t.id]})).filter(x=>x.s && x.s.attempts && x.s.best<80)
+    .sort((a,b)=>(a.s.best - b.s.best) || (b.s.wrong - a.s.wrong)).slice(0,n).map(x=>x.t);
+}
+function logMistake(topicId, q, chosen, correct, fix){
+  S.mistakes.unshift({t:topicId, q, chosen, correct, fix, d:today()});
+  S.mistakes = S.mistakes.slice(0,40);
+  topicStat(topicId).wrong++;
+}
+
+/* =================== AI =================== */
+let AI = null, aiReady = false, aiImages = false;
+async function initAI(){
+  try{ AI = window.claude?.use ? await claude.use("sample") : null; }catch(e){ AI = null; }
+  if(AI){ try{ const lim = await AI.limits(); aiImages = !!lim?.images; }catch(e){} }
+  aiReady = true; render();
+}
+const RULES = () => `You are "Coach", a friendly, patient tutor inside the Ledger Up study app. The student${S.name?` is ${S.name}, who`:""} lives in Trinidad and Tobago and is preparing for the CXC CSEC Principles of Accounts (POA) exam in May/June 2028.
+
+How to teach:
+- Follow the CSEC POA syllabus and its terms (Income Statement, Statement of Financial Position, inventory, trade receivables/payables). If an older term (trading and P&L account, balance sheet, stock, debtors/creditors) helps, mention it once in brackets.
+- Explain step by step in numbered steps with short, simple sentences, as if to a 15-year-old who finds this topic hard. Define any new term in plain words.
+- Use Caribbean examples and TT$ amounts: doubles vendors, roti shops, Carnival bands, maxi taxis, Massy, hardware stores, bake and shark, etc.
+- Lay out ledger (T) accounts, journals and statements as Markdown tables with Dr/Cr or Details/$ columns, so figures line up. Check every calculation twice.
+- When the student shows their own working or answer, say first what they got right, then point to the EXACT line that is wrong, explain why it is wrong, and show how to fix it.
+- If the student is working on a question, give a hint first and let them try, unless they ask for the full solution.
+- Keep answers focused, about 120–300 words, unless asked for more. End with one short question to check understanding when it fits.
+- Stay on POA and study skills. Be encouraging and never make the student feel stupid.
+
+Visuals: this app draws diagrams from special code blocks, and visual explanations help this student a lot. When a picture helps (double entry, ledger accounts, statements, step-by-step processes, comparing figures), include ONE or TWO of these blocks. The content must be valid JSON, numbers without $ or commas. Debits show in blue and credits in orange automatically.
+\`\`\`taccounts
+{"title":"Optional title","accounts":[{"name":"Cash","dr":[["Capital",5000],["Sales",2400]],"cr":[["Equipment",1800]],"balance":true}]}
+\`\`\`
+("balance": true adds Balance c/d and b/d for you.)
+\`\`\`ladder
+{"title":"Income Statement","rows":[["Sales",120000],["Returns inwards",-5000],["= Net sales",115000]]}
+\`\`\`
+(negative numbers are deductions; a label starting with "= " is a total.)
+\`\`\`flow
+{"title":"Accounting cycle","steps":[{"t":"Source document","s":"Invoice from Massy"},{"t":"Sales Journal"}]}
+\`\`\`
+\`\`\`compare
+{"title":"Current ratio","items":[["Current assets",36000],["Current liabilities",12000]],"caption":"3 : 1"}
+\`\`\`
+Use a normal Markdown table for anything else (journals, trial balances, three-column cash books).${S.coachStyle==="co-calypso"?`
+
+Style: you are "Calypso Coach". Keep the teaching accurate, and finish each explanation with a short, catchy two-to-four-line calypso-style rhyme that helps the rule stick.`:S.coachStyle==="co-examiner"?`
+
+Style: you are "Examiner Coach". Be precise and a little strict, like a CXC examiner. Point out where marks would be lost, and use mark-scheme language (e.g. "1 mark for correct heading").`:""}
+
+Syllabus topics in this app: ${TOPICS.map(t=>t.name).join("; ")}.`;
+
+function aiErr(e){
+  const c = e?.code;
+  if(c==="not_granted") return "Coach needs your OK to use Claude. Reload the page and choose Allow when asked.";
+  if(c==="rate_limited") return "Coach is taking a short break (too many questions too fast, or your Claude usage limit). Try again in a little while.";
+  if(c==="session_expired") return "Please sign in to Claude again, then come back.";
+  if(c==="sampling_disabled"||c==="unavailable") return STANDALONE ? "Coach needs the online version. Tap \"Open Coach online\" when you have internet." : "The AI coach isn't available here. Open this page in the Claude app or claude.ai while signed in.";
+  if(c==="refused") return "Coach couldn't answer that one. Try asking it a different way.";
+  if(c==="invalid_json") return "Coach's answer came back jumbled. Tap to try again.";
+  if(c==="cancelled") return "Stopped.";
+  return "Something went wrong reaching Coach. Check your internet and try again.";
+}
+function aiCall(input, opts={}){
+  if(!AI) return Promise.reject({code:"unavailable"});
+  return AI(input, Object.assign({model:MODEL, modelTier:"default", effort:"low"}, opts));
+}
+function aiJSON(input, opts={}){
+  if(!AI) return Promise.reject({code:"unavailable"});
+  return AI.json(input, Object.assign({model:MODEL, modelTier:"default", effort:"medium", cache:false}, opts));
+}
+
+/* =================== MARKDOWN =================== */
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function inl(s){
+  s = esc(s);
+  s = s.replace(/`([^`]+)`/g,"<code>$1</code>");
+  s = s.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>");
+  s = s.replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,!?:;]|$)/g,"$1<em>$2</em>");
+  return s;
+}
+function mdTable(rows){
+  const cells = r => r.trim().replace(/^\|/,"").replace(/\|$/,"").split("|").map(c=>c.trim());
+  const isSep = r => /^\s*\|?\s*:?-{2,}/.test(r) && /^[\s|:\-]+$/.test(r);
+  let head = null, body = rows;
+  if(rows.length>1 && isSep(rows[1])){ head = cells(rows[0]); body = rows.slice(2); }
+  body = body.filter(r=>!isSep(r));
+  let h = '<div class="tbl"><table>';
+  if(head) h += "<thead><tr>"+head.map(c=>"<th>"+inl(c)+"</th>").join("")+"</tr></thead>";
+  h += "<tbody>"+body.map(r=>"<tr>"+cells(r).map(c=>"<td>"+inl(c)+"</td>").join("")+"</tr>").join("")+"</tbody></table></div>";
+  return h;
+}
+function md(src){
+  const L = String(src||"").replace(/\r/g,"").split("\n"); const out=[]; let i=0;
+  const startRe = /^(```|#{1,6}\s|\s*[-*•]\s+|\s*\d+[.)]\s+|\s*\|.*\|\s*$|\s*(---|\*\*\*)\s*$)/;
+  while(i<L.length){
+    const l = L[i];
+    if(/^```/.test(l)){ const lang=(l.match(/^```\s*([\w-]+)/)||[])[1]; const b=[]; i++; let closed=false; while(i<L.length){ if(/^```/.test(L[i])){ closed=true; break; } b.push(L[i++]); } i++;
+      const vis = lang && VIS_FENCE[lang.toLowerCase()] ? (closed ? fenceVisual(lang, b.join("\n")) : `<p class="muted"><i>Drawing a diagram…</i></p>`) : null;
+      out.push(vis || "<pre>"+esc(b.join("\n"))+"</pre>"); continue; }
+    if(/^\s*\|.*\|\s*$/.test(l)){ const r=[]; while(i<L.length && /^\s*\|.*\|\s*$/.test(L[i])) r.push(L[i++]); out.push(mdTable(r)); continue; }
+    const h = l.match(/^(#{1,6})\s+(.*)/); if(h){ const lv=Math.min(6,h[1].length+2); out.push(`<h${lv}>${inl(h[2])}</h${lv}>`); i++; continue; }
+    if(/^\s*[-*•]\s+/.test(l)){ const it=[]; while(i<L.length && /^\s*[-*•]\s+/.test(L[i])) it.push(L[i++].replace(/^\s*[-*•]\s+/,"")); out.push("<ul>"+it.map(x=>"<li>"+inl(x)+"</li>").join("")+"</ul>"); continue; }
+    if(/^\s*\d+[.)]\s+/.test(l)){ const it=[]; const st=parseInt(l,10)||1; while(i<L.length && /^\s*\d+[.)]\s+/.test(L[i])) it.push(L[i++].replace(/^\s*\d+[.)]\s+/,"")); out.push(`<ol start="${st}">`+it.map(x=>"<li>"+inl(x)+"</li>").join("")+"</ol>"); continue; }
+    if(/^\s*(---|\*\*\*)\s*$/.test(l)){ out.push("<hr>"); i++; continue; }
+    if(!l.trim()){ i++; continue; }
+    const p=[L[i++]]; while(i<L.length && L[i].trim() && !startRe.test(L[i])) p.push(L[i++]);
+    out.push("<p>"+inl(p.join(" "))+"</p>");
+  }
+  return out.join("");
+}
+
+/* =================== UI HELPERS =================== */
+const $ = s => document.querySelector(s);
+const ICON = {
+  home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  book:'<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7M8 11h7"/>',
+  chat:'<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z"/><path d="M9 11h.01M12 11h.01M15 11h.01"/>',
+  target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+  me:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  flame:'<path d="M12 2c1 4 5 5.5 5 11a5 5 0 0 1-10 0c0-2.5 1.2-4 2.5-5 .3 1.6 1 2.6 2 3 .2-3.5-.5-6.5.5-9z" fill="currentColor" stroke="none"/>',
+  star:'<path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z" fill="currentColor" stroke="none"/>',
+  send:'<path d="M4 12l16-8-6 16-2.5-6.5z"/>',
+  cam:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  gift:'<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M5 12v9h14v-9M12 8c-1.5-3-5-4-5.5-2S9 8 12 8zm0 0c1.5-3 5-4 5.5-2S15 8 12 8z"/>',
+  stop:'<rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>',
+};
+const ico = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
+let toastT;
+function toast(msg, gold){ const t=$("#toast"); t.textContent=msg; t.className="toast show"+(gold?" gold":""); clearTimeout(toastT); toastT=setTimeout(()=>t.className="toast",2400); }
+function thinking(label="Coach is thinking"){ return `<span class="thinking"><span class="dots"><i></i><i></i><i></i></span>${esc(label)}…</span>`; }
+const shuffle = a => { a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+function hashStr(s){ let h=2166136261; for(const c of s){ h^=c.charCodeAt(0); h=Math.imul(h,16777619); } return h>>>0; }
+
+/* =================== ROUTER =================== */
+let tab = "home", sub = null;
+const TABS = [["home","Home","home"],["topics","Topics","book"],["tutor","Coach","chat"],["practice","Practice","target"],["rewards","Rewards","gift"]];
+function go(t, s=null){ stopGame(); if(t==="game") G=null; tab=t; sub=s; render(); window.scrollTo({top:0}); }
+function renderTabs(){
+  const list = COACH_MODE ? [["tutor","Coach","chat"],["topics","Lessons","book"],["practice","Paper 02","target"]] : TABS;
+  $("#tabs").style.gridTemplateColumns = `repeat(${list.length},1fr)`;
+  $("#tabs").innerHTML = list.map(([id,label,ic])=>`<button class="${tab===id?"on":""}" data-tab="${id}" aria-current="${tab===id?"page":"false"}">${ico(ic)}<span>${label}</span></button>`).join("");
+  $("#tabs").querySelectorAll("button").forEach(b=>b.onclick=()=>go(b.dataset.tab));
+}
+function renderHeader(){
+  if(COACH_MODE){
+    $("#hdrAv").hidden=true; $("#hdrBar").parentElement.hidden=true;
+    document.querySelector(".brand").innerHTML = "Ledger Up <small>COACH</small>";
+    const pend=S.pendXP||0, c=pendingCounts();
+    $("#hdrStreak").hidden=true;
+    $("#hdrCoins").innerHTML = pend||c.t||c.s ? `<a href="${claimURL()}" target="_blank" rel="noopener" id="sendPts" style="color:inherit;text-decoration:none">Add ${pend} XP to app ↗</a>` : `<a href="${APP_URL}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">Open app ↗</a>`;
+    const sp=$("#sendPts"); if(sp) sp.onclick=()=>setTimeout(markClaimSent,300);
+    return;
+  }
+  const L = levelOf(S.xp), lo = levelFloor(L), hi = levelFloor(L+1);
+  $("#hdrStreak").innerHTML = ico("flame")+liveStreak();
+  $("#hdrCoins").innerHTML = `<span class="coinico">c</span>`+S.coins.toLocaleString();
+  const av=$("#hdrAv"); av.textContent = avatarFace(); av.onclick = ()=>go("me");
+  $("#hdrBar").style.width = Math.round((S.xp-lo)/(hi-lo)*100)+"%";
+}
+function render(){
+  renderHeader(); renderTabs();
+  const v = $("#view");
+  if(COACH_MODE && ["home","rewards","me","parent","game","cards"].includes(tab)) tab="tutor";
+  if(!S.name && tab!=="welcome"){ return viewWelcome(v); }
+  ({home:viewHome, topics:viewTopics, tutor:viewTutor, practice:viewPractice, me:viewMe, quiz:viewQuiz, game:viewGame, structured:viewStructured, rewards:viewRewards, parent:viewParent, cards:viewCards})[tab](v);
+}
+
+/* =================== WELCOME =================== */
+function viewWelcome(v){
+  v.innerHTML = `
+  <div class="hero"><div class="ledgerlines"></div>
+    <span class="eyebrow" style="color:inherit;opacity:.8">CSEC Principles of Accounts · May/June 2028</span>
+    <h2>Let's get your books balanced.</h2>
+    <p style="margin:0">Ask Coach anything, practise with quizzes that explain your mistakes, and build a daily streak.</p>
+  </div>
+  <div class="card"><form id="wf" class="view" style="gap:12px">
+    <div><label class="lab" for="nm">What should Coach call you?</label>
+    <input class="field" id="nm" maxlength="30" autocomplete="given-name" placeholder="Your first name" required></div>
+    <button class="btn block" type="submit">Start studying</button>
+  </form></div>`;
+  $("#wf").onsubmit = e => { e.preventDefault(); const n=$("#nm").value.trim(); if(!n) return; S.name=n; save(); go("home"); };
+}
+
+/* =================== HOME =================== */
+function daysToExam(){ const d = Math.ceil((new Date(EXAM_DATE+"T08:00:00") - new Date())/86400000); return Math.max(0,d); }
+function dailyQ(){ const idx = hashStr(today()+"poa") % BANK.length;
+  const weak = weakTopics(3).map(t=>t.id);
+  if(weak.length){ const pool = BANK.filter(q=>weak.includes(q.t)); if(pool.length) return pool[hashStr(today())%pool.length]; }
+  return BANK[idx]; }
+function viewHome(v){
+  const h = new Date().getHours();
+  const greet = h<12?"Good morning":h<17?"Good afternoon":"Good evening";
+  const todayXP = S.days[today()]||0, pct = Math.min(100, Math.round(todayXP/DAILY_GOAL*100));
+  const L = levelOf(S.xp);
+  const dq = dailyQ(); const done = S.daily===today();
+  const weak = weakTopics(3);
+  const last = S.lastTopic && TOPIC[S.lastTopic];
+  const wks = Math.floor(daysToExam()/7);
+  v.innerHTML = `
+  <div class="hero"><div class="ledgerlines"></div>
+    <span class="eyebrow" style="color:inherit;opacity:.8">${esc(levelName(L))} · Level ${L}</span>
+    <h2>${greet}, ${esc(S.name)}.</h2>
+    <div class="goal"><div class="ring" style="--p:${pct}"><b>${todayXP}/${DAILY_GOAL}</b></div>
+      <div>${pct>=100?"<b>Daily goal smashed.</b> Anything extra is a bonus.":`<b>Today's goal: ${DAILY_GOAL} XP.</b> ${DAILY_GOAL-todayXP} XP to go.`}<br><span style="opacity:.85">${liveStreak()?`Keep your ${liveStreak()}-day streak alive.`:"Earn any XP today to start a streak."}</span></div></div>
+    <div class="stats">
+      <div class="stat"><b>${liveStreak()}</b><span>day streak</span></div>
+      <div class="stat"><b>${Object.keys(S.badges).length}</b><span>badges</span></div>
+      <div class="stat"><b>${wks}</b><span>weeks to exam</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between"><span class="eyebrow">Daily challenge · ${esc(TOPIC[dq.t].name)}</span><span class="score">+30 XP</span></div>
+    ${done?`<p style="margin:8px 0 0"><b>Done for today.</b> A new challenge unlocks tomorrow. Daily challenges completed: ${S.n.daily}.</p>`:
+    `<p class="qtext" style="margin:8px 0 12px">${esc(dq.q)}</p><button class="btn gold block" id="dqGo">Answer today's challenge</button>`}
+  </div>
+
+  ${STANDALONE && !window.matchMedia("(display-mode: standalone)").matches && !S.hideInstall ? `<div class="card" id="installCard"><span class="eyebrow">Use it offline</span><h3 style="margin-top:4px">Add Ledger Up to your home screen</h3>
+    <p class="muted" style="margin:0 0 10px;font-size:14px">${installEvt?"Tap Install and it works like a normal app, even with no internet.":"<b>iPhone:</b> tap the Share button, then <i>Add to Home Screen</i>. <b>Android:</b> tap the ⋮ menu, then <i>Install app</i> or <i>Add to Home screen</i>."}</p>
+    <div class="row">${installEvt?`<button class="btn sm" id="instBtn">Install</button>`:""}<button class="btn line sm" id="instHide">Hide</button></div></div>`:""}
+  <div class="grid2">
+    <button class="btn" id="hAsk">${ico("chat")} Ask Coach</button>
+    <button class="btn ghost" id="hGame">Debit or Credit?</button>
+  </div>
+
+  ${last?`<div class="card"><span class="eyebrow">Pick up where you left off</span><h3 style="margin-top:4px">${esc(last.name)}</h3><p class="muted" style="margin:0 0 10px">${esc(last.short)}</p><button class="btn ghost" id="hLast">Continue</button></div>`:""}
+
+  <div class="card">
+    <span class="eyebrow">${weak.length?"Your weak spots":"Where to start"}</span>
+    <div class="tlist" style="margin-top:8px">${(weak.length?weak:[TOPIC.doubleentry,TOPIC.equation,TOPIC.trialbalance]).map(t=>topicRow(t)).join("")}</div>
+  </div>`;
+  if(!done) $("#dqGo").onclick = ()=> startQuiz({daily:true});
+  $("#hAsk").onclick = ()=> go("tutor");
+  if($("#instHide")) $("#instHide").onclick = ()=>{ S.hideInstall=true; save(); render(); };
+  if($("#instBtn")) $("#instBtn").onclick = async ()=>{ try{ installEvt.prompt(); await installEvt.userChoice; }catch(e){} installEvt=null; render(); };
+  $("#hGame").onclick = ()=> go("game");
+  if(last) $("#hLast").onclick = ()=> go("topics", last.id);
+  bindTopicRows(v);
+}
+function topicRow(t){
+  const m = mastery(t.id); const cls = m===null?"":m>=80?"good":m>=50?"mid":"low";
+  const n = TOPICS.indexOf(t)+1;
+  return `<button class="titem" data-topic="${t.id}"><span class="num">${pad(n)}</span><span><b>${esc(t.name)}</b><span class="sub">${esc(t.short)}</span></span><span class="mastery ${cls}">${m===null?"New":m+"%"}</span></button>`;
+}
+function bindTopicRows(v){ v.querySelectorAll("[data-topic]").forEach(b=>b.onclick=()=>go("topics", b.dataset.topic)); }
+
+/* =================== TOPICS =================== */
+let lessonCtl=null;
+function viewTopics(v){
+  if(sub && TOPIC[sub]) return viewTopic(v, TOPIC[sub]);
+  const tried = TOPICS.filter(t=>S.topics[t.id]?.attempts).length;
+  v.innerHTML = `<div><h2 style="font-size:26px">Syllabus topics</h2><p class="muted" style="margin:4px 0 0">${tried} of ${TOPICS.length} topics practised. Tap a topic for notes, a step-by-step lesson and a quiz.</p></div>` +
+    SECTIONS.map(s=>`<div class="sec-h"><h3>${esc(s.name)}</h3></div><div class="tlist">${TOPICS.filter(t=>t.sec===s.id).map(topicRow).join("")}</div>`).join("");
+  bindTopicRows(v);
+}
+function viewTopic(v, t){
+  S.lastTopic = t.id; save();
+  const st = S.topics[t.id];
+  v.innerHTML = `
+  <button class="back" id="bk">← All topics</button>
+  <div><span class="eyebrow">${esc(SECTIONS.find(s=>s.id===t.sec).name)}</span><h2 style="font-size:26px;margin-top:4px">${esc(t.name)}</h2>
+  ${st?.attempts?`<div class="row" style="margin-top:8px"><div class="bar" style="flex:1"><i style="width:${st.best}%"></i></div><span class="mastery ${st.best>=80?"good":st.best>=50?"mid":"low"}">Best ${st.best}%</span></div>`:""}</div>
+  ${visualCard(t)}
+  <div class="card"><span class="eyebrow">Key points</span><ul class="notes" style="margin-top:8px">${t.notes.map(n=>`<li>${esc(n)}</li>`).join("")}</ul></div>
+  <div class="grid2">
+    ${STANDALONE?`<a class="btn" style="text-decoration:none" href="${ONLINE_URL}#${t.id}" target="_blank" rel="noopener">Lesson with Coach ↗</a>`:`<button class="btn" id="tLesson">Step-by-step lesson</button>`}
+    <button class="btn gold" id="tQuiz">Quiz me (5 questions)</button>
+    ${STANDALONE?"":`<button class="btn ghost" id="tEx">New worked example</button>
+    <button class="btn ghost" id="tAsk">Ask Coach about this</button>`}
+  </div>
+  <div class="card" id="lessonBox" hidden><div class="row" style="justify-content:space-between"><span class="eyebrow" id="lessonLbl">Lesson</span><button class="btn line sm" id="lessonStop" hidden>Stop</button></div><div class="md" id="lessonOut" style="margin-top:8px"></div></div>
+  ${aiReady && !AI?aiBanner():""}`;
+  $("#bk").onclick = ()=>go("topics");
+  $("#tQuiz").onclick = ()=>startQuiz({topic:t.id});
+  if($("#tAsk")) $("#tAsk").onclick = ()=>{ chatTopic = t.id; go("tutor"); };
+  if($("#tLesson")) $("#tLesson").onclick = ()=>runLesson(t, false);
+  mountVisual(t);
+  if($("#tEx")) $("#tEx").onclick = ()=>runLesson(t, true);
+}
+async function runLesson(t, example){
+  const box=$("#lessonBox"), out=$("#lessonOut"), stop=$("#lessonStop");
+  box.hidden=false; $("#lessonLbl").textContent = example?"Worked example":"Step-by-step lesson";
+  out.innerHTML = thinking(example?"Coach is writing a fresh example":"Coach is preparing your lesson");
+  box.scrollIntoView({behavior:"smooth",block:"start"});
+  lessonCtl?.abort(); lessonCtl = new AbortController(); stop.hidden=false; stop.onclick=()=>lessonCtl.abort();
+  const prompt = RULES() + "\n\n" + (example
+    ? `Give ONE new, realistic CSEC-style worked example on "${t.name}" (${t.short}). Set it in a Trinidad and Tobago business with TT$ figures. Show the question first, then solve it in numbered steps with all working, using tables for accounts/statements. End with "Exam tip:" and one sentence. Make it different from a typical textbook example. Random seed: ${Math.random().toString(36).slice(2,7)}.`
+    : `Teach the topic "${t.name}" (${t.short}) as a short lesson for a student who is struggling with it. Use these headings: "### In one sentence", "### Key words", "### Step by step", "### Worked example" (Caribbean business, TT$, with tables for any accounts or statements), "### Mistakes examiners see", "### Quick check" (one question; put the answer on the last line after "Answer:").`);
+  try{
+    await aiCall(prompt, {signal:lessonCtl.signal, cache: example?false:{gcTime:86400000}, effort: "low", onText:({text})=>{ out.innerHTML = md(text); }});
+    const st = topicStat(t.id); st.lessons++; S.n.lesson++;
+    const k = t.id+(example?"x":"l");
+    if(S.lessonDay[k]!==today()){ S.lessonDay[k]=today(); addXP(10, example?"worked example":"lesson"); } else save();
+  }catch(e){ if(e.code!=="cancelled") out.innerHTML = (e.text?md(e.text):"") + `<p class="banner">${esc(aiErr(e))}</p>`; else if(e.text) out.innerHTML = md(e.text); }
+  stop.hidden=true;
+}
+function aiBanner(){ return STANDALONE
+  ? `<div class="banner" style="display:flex;flex-direction:column;gap:8px"><span><b>Coach lives in the online version.</b> Everything else here works without internet. When you're online, open Coach to ask questions, get lessons and have your working marked.</span><a class="btn sm" style="align-self:flex-start;text-decoration:none" href="${ONLINE_URL}" target="_blank" rel="noopener">Open Coach online ↗</a></div>`
+  : `<div class="banner">The AI coach isn't available in this view. Open Ledger Up in the Claude app or on claude.ai while signed in. Notes, visuals and the built-in quiz questions still work.</div>`; }
+
+/* =================== QUIZ =================== */
+let Q = null;
+async function startQuiz({topic=null, mixed=false, daily=false, n=5, paper1=false}={}){
+  Q = {topic, daily, mixed, paper1, items:[], i:0, picked:null, results:[], loading:true, note:"", xp:0};
+  go("quiz");
+  if(daily){ Q.items=[fromBank(dailyQ())]; Q.loading=false; return render(); }
+  const topics = topic ? [TOPIC[topic]] : pickMixed(paper1?6:4);
+  if(AI){
+    try{
+      const items = await aiJSON(
+`You write multiple-choice practice questions for a student in Trinidad and Tobago preparing for CXC CSEC Principles of Accounts (Paper 01 style).
+${topic?`Topic: ${topics[0].name} (${topics[0].short}).`:`Mix these topics: ${topics.map(t=>t.name).join("; ")}.`}
+Write ${n} questions at real CSEC level. Mix concept questions with short calculations. Use Caribbean names, businesses and TT$ amounts. Work out every calculation carefully and check that exactly one option is correct.
+Reply with only a JSON array. Each item: {"topic": "<one of: ${topics.map(t=>t.id).join(", ")}>", "q": "question", "options": ["A","B","C","D"], "answer": <index 0-3>, "why": "2-4 short sentences explaining step by step why the answer is correct, showing the working", "trap": "1-2 sentences naming the mistake behind the most tempting wrong option and how to avoid it"}
+Random seed: ${Math.random().toString(36).slice(2,8)}`);
+      const ok = (Array.isArray(items)?items:[]).filter(x=>x && typeof x.q==="string" && Array.isArray(x.options) && x.options.length===4 && Number.isInteger(+x.answer) && +x.answer>=0 && +x.answer<4)
+        .map(x=>({t: TOPIC[x.topic]?x.topic:topics[0].id, q:x.q, o:x.options.map(String), a:+x.answer, why:String(x.why||""), trap:String(x.trap||"")}));
+      if(ok.length>=Math.min(3,n)){ Q.items = ok.slice(0,n); Q.loading=false; return tab==="quiz" && render(); }
+      Q.note = "Coach's questions came back incomplete, so here are questions from the built-in bank.";
+    }catch(e){ if(e.code==="cancelled") return; Q.note = aiErr(e)+" Using questions from the built-in bank instead."; }
+  } else Q.note = "Using questions from the built-in bank (the AI coach isn't available here).";
+  const pool = BANK.filter(b=>topics.some(t=>t.id===b.t));
+  Q.items = shuffle(pool.length?pool:BANK).slice(0,n).map(fromBank);
+  if(Q.items.length < n) Q.items = Q.items.concat(shuffle(BANK.filter(b=>!pool.includes(b))).slice(0,n-Q.items.length).map(fromBank));
+  Q.loading=false; if(tab==="quiz") render();
+}
+function fromBank(b){
+  const order = shuffle([0,1,2,3]);
+  return {t:b.t, q:b.q, o:order.map(i=>b.o[i]), a:order.indexOf(b.a), why:b.why, trap:b.trap};
+}
+function pickMixed(k){
+  const weak = weakTopics(2);
+  return shuffle(weak.concat(shuffle(TOPICS.filter(t=>!weak.includes(t))).slice(0,k-weak.length)));
+}
+function viewQuiz(v){
+  if(!Q) return go("practice");
+  const title = Q.daily?"Daily challenge":Q.topic?TOPIC[Q.topic].name:Q.paper1?"Paper 01 practice":"Mixed quiz";
+  if(Q.loading){ v.innerHTML = `<button class="back" id="bk">← Back</button><div class="card"><span class="eyebrow">${esc(title)}</span><h3 style="margin-top:6px">Coach is writing fresh questions for you</h3><p class="muted">This can take up to a minute. Every quiz is new.</p>${thinking("Writing questions")}</div>`; $("#bk").onclick=()=>{Q=null;go("practice");}; return; }
+  if(Q.i >= Q.items.length) return quizDone(v, title);
+  const it = Q.items[Q.i], picked = Q.picked;
+  const prog = Q.items.map((_,k)=>`<i class="${k<Q.i?(Q.results[k]?"ok":"bad"):k===Q.i?"now":""}"></i>`).join("");
+  let fb = "";
+  if(picked!==null){
+    const right = picked===it.a;
+    fb = right
+      ? `<div class="fb ok"><h4>Correct! +10 XP</h4><div><span class="lbl">Why it's right</span><div>${esc(it.why)}</div></div></div>`
+      : `<div class="fb bad"><h4>Not quite. The answer is ${"ABCD"[it.a]}.</h4>
+          <div><span class="lbl">Why ${"ABCD"[it.a]} is right</span><div>${esc(it.why)}</div></div>
+          ${it.trap?`<div class="fixbox"><span class="lbl">Where it went wrong and how to fix it</span><div>${esc(it.trap)}</div></div>`:""}
+          <button class="btn line sm" id="qAsk" style="align-self:flex-start">Still confused? Ask Coach</button></div>`;
+  }
+  v.innerHTML = `
+  <div class="qtop"><button class="back" id="bk">← Quit</button><span class="eyebrow">${esc(title)}</span></div>
+  ${Q.note?`<div class="banner">${esc(Q.note)}</div>`:""}
+  <div class="card qcard">
+    <div class="qtop"><div class="qprog">${prog}</div><span class="eyebrow" style="margin-left:8px">${Q.i+1}/${Q.items.length}</span></div>
+    <span class="eyebrow">${esc(TOPIC[it.t]?.name||"")}</span>
+    <div class="qtext">${esc(it.q)}</div>
+    <div class="opts">${it.o.map((o,k)=>`<button class="opt ${picked===null?"":k===it.a?"ok":k===picked?"bad":""}" data-k="${k}" ${picked!==null?"disabled":""}><span class="L">${"ABCD"[k]}</span><span>${esc(o)}</span></button>`).join("")}</div>
+    ${fb}
+    ${picked!==null?`<button class="btn block" id="qNext">${Q.i+1<Q.items.length?"Next question":"See my results"}</button>`:""}
+  </div>`;
+  $("#bk").onclick = ()=>{ Q=null; go("practice"); };
+  v.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
+    if(Q.picked!==null) return;
+    Q.picked = +b.dataset.k; (Q.picks ||= [])[Q.i] = Q.picked; const right = Q.picked===it.a; Q.results[Q.i]=right;
+    if(right){ Q.xp += 10; addXP(10, "correct answer"); }
+    else { logMistake(it.t, it.q, it.o[Q.picked], it.o[it.a], it.trap); save(); }
+    render();
+    setTimeout(()=>$(".fb")?.scrollIntoView({behavior:"smooth",block:"nearest"}),50);
+  });
+  if($("#qNext")) $("#qNext").onclick = ()=>{ Q.i++; Q.picked=null; render(); window.scrollTo({top:0,behavior:"smooth"}); };
+  if($("#qAsk")) $("#qAsk").onclick = ()=>{ chatTopic = it.t; pendingChat = `I got this quiz question wrong and I don't understand why.\n\nQuestion: ${it.q}\nOptions: ${it.o.map((o,k)=>"ABCD"[k]+") "+o).join("  ")}\nI chose: ${it.o[picked]}\nCorrect answer: ${it.o[it.a]}\n\nPlease explain step by step where my thinking went wrong and how to get it right next time.`; go("tutor"); };
+}
+function quizDone(v, title){
+  const right = Q.results.filter(Boolean).length, total = Q.items.length, pct = Math.round(right/total*100);
+  if(!Q.finished){
+    Q.finished = true;
+    if(Q.daily){ S.daily = today(); S.n.daily++; addXP(30, "daily challenge"); }
+    else {
+      S.n.quiz++; if(pct===100) S.n.perfect++;
+      const per = {};
+      Q.items.forEach((it,k)=>{ (per[it.t] ||= [0,0]); per[it.t][1]++; if(Q.results[k]) per[it.t][0]++; });
+      for(const [tid,[r,n]] of Object.entries(per)){ const st=topicStat(tid); st.attempts++; if(Q.topic||n>=2||st.best===0) st.best=Math.max(st.best, Math.round(r/n*100)); }
+      addXP(20 + (pct===100?30:0), pct===100?"perfect quiz bonus":"quiz complete");
+    }
+  }
+  const wrong = Q.items.map((it,k)=>({it,k})).filter(x=>!Q.results[x.k]);
+  const msg = pct===100?"Perfect. Those books balance.":pct>=80?"Strong work. You're close to mastering this.":pct>=50?"Good effort. Let's fix the ones you missed.":"This topic needs more practice. That's what Coach is for.";
+  v.innerHTML = `
+  <div class="hero"><div class="ledgerlines"></div><span class="eyebrow" style="color:inherit;opacity:.8">${esc(title)}</span>
+    <div class="big">${right}/${total}</div><h2>${msg}</h2></div>
+  ${wrong.length?`<div class="card"><span class="eyebrow">What you missed</span><div class="view" style="gap:12px;margin-top:8px">${wrong.map(({it})=>`<div class="mistake"><b>${esc(it.q)}</b><span>Answer: ${esc(it.o[it.a])}</span>${it.trap?`<span class="muted">${esc(it.trap)}</span>`:""}</div>`).join("")}</div>
+   <button class="btn gold block" id="qReview" style="margin-top:12px">Go over my mistakes with Coach</button></div>`:""}
+  <div class="grid2">
+    ${Q.daily?"":`<button class="btn" id="qAgain">Another quiz</button>`}
+    <button class="btn ghost" id="qHome">Back to home</button>
+  </div>`;
+  if($("#qAgain")) $("#qAgain").onclick = ()=>startQuiz({topic:Q.topic, paper1:Q.paper1, n:Q.items.length});
+  $("#qHome").onclick = ()=>{ Q=null; go("home"); };
+  if($("#qReview")) $("#qReview").onclick = ()=>{
+    S.n.review++; checkBadges(); save();
+    chatTopic = Q.topic || null;
+    pendingChat = "I just finished a quiz. Please go through the questions I got wrong, one at a time. For each, explain step by step what I misunderstood and give me a similar question to try.\n\n" +
+      wrong.map(({it,k},n)=>`${n+1}. ${it.q}\n   I chose: ${it.o[Q.picks?.[k]] ?? "?"}\n   Correct: ${it.o[it.a]}`).join("\n");
+    go("tutor");
+  };
+}
+
+/* =================== TUTOR / CHAT =================== */
+let chat = [], chatTopic = null, pendingChat = null, chatCtl = null, chatBusy = false, pendingImg = null;
+function viewTutor(v){
+  if(STANDALONE) return viewCoachDoor(v);
+  const t = chatTopic && TOPIC[chatTopic];
+  const starters = t
+    ? [`Explain ${t.name} like I'm new to it`, `Give me a worked example on ${t.name}`, `What mistakes do students make in ${t.name}?`, `Quiz me with one question on ${t.name}`]
+    : ["How do I know when to debit or credit?","Explain accruals and prepayments with an example","Walk me through a bank reconciliation","How do I lay out an Income Statement?","Check my working for a question"];
+  v.innerHTML = `
+  <div class="row" style="justify-content:space-between"><div><h2 style="font-size:24px">Coach</h2><span class="muted" style="font-size:14px">${t?`Focus: ${esc(t.name)}`:"Your personal POA tutor"}</span></div>
+   ${chat.length?`<button class="btn line sm" id="cNew">New chat</button>`:""}</div>
+  ${aiReady && !AI?aiBanner():""}
+  <div class="chat" id="chatLog">
+    ${chat.length?"":`<div class="msg ai"><div class="md"><p>Hi ${esc(S.name)}! I'm Coach. Ask me about any POA topic, paste a past paper question, or ${aiImages?"send a photo of your working and I'll show you exactly where it went wrong.":"type out your working and I'll show you exactly where it went wrong."}</p></div></div>`}
+  </div>
+  <div class="composer">
+    ${chat.length?"":`<div class="chips">${starters.map(s=>`<button class="chip" data-s="${esc(s)}">${esc(s)}</button>`).join("")}</div>`}
+    <div id="attachRow"></div>
+    <div class="cbox">
+      ${aiImages?`<button class="iconbtn" id="cCam" title="Attach a photo" aria-label="Attach a photo">${ico("cam")}</button>`:""}
+      <textarea id="cIn" rows="1" placeholder="Ask Coach anything…" aria-label="Message to Coach"></textarea>
+      <button class="iconbtn send" id="cSend" aria-label="Send">${ico(chatBusy?"stop":"send")}</button>
+    </div>
+  </div>`;
+  const log = $("#chatLog");
+  chat.forEach(m=>log.insertAdjacentHTML("beforeend", bubble(m)));
+  const inp = $("#cIn");
+  inp.oninput = ()=>{ inp.style.height="auto"; inp.style.height=Math.min(140,inp.scrollHeight)+"px"; };
+  inp.onkeydown = e=>{ if(e.key==="Enter" && !e.shiftKey && window.matchMedia("(pointer:fine)").matches){ e.preventDefault(); $("#cSend").click(); } };
+  $("#cSend").onclick = ()=>{ if(chatBusy){ chatCtl?.abort(); return; } const tx=inp.value.trim(); if(!tx && !pendingImg) return; inp.value=""; sendChat(tx || "Please look at my photo and help me with it."); };
+  v.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>sendChat(b.dataset.s));
+  if($("#cNew")) $("#cNew").onclick = ()=>{ chatCtl?.abort(); chat=[]; chatTopic=null; pendingImg=null; render(); };
+  if($("#cCam")) $("#cCam").onclick = ()=>pickImage(()=>renderAttach());
+  renderAttach();
+  if(pendingChat){ const p=pendingChat; pendingChat=null; sendChat(p); }
+  else if(chat.length) setTimeout(()=>window.scrollTo({top:document.body.scrollHeight}),30);
+}
+function pickImage(cb){
+  const f=$("#fileIn"); f.value="";
+  f.onchange = ()=>{ const file=f.files[0]; if(!file) return; if(!/^image\//.test(file.type)){ toast("Please choose a photo."); return; } pendingImg = {file, url:URL.createObjectURL(file)}; cb(); };
+  f.click();
+}
+function renderAttach(){
+  const r=$("#attachRow"); if(!r) return;
+  r.innerHTML = pendingImg?`<div class="attach"><img src="${pendingImg.url}" alt="Attached photo"><span style="flex:1">Photo attached</span><button class="btn line sm" id="rmImg">Remove</button></div>`:"";
+  if(pendingImg) $("#rmImg").onclick=()=>{ pendingImg=null; renderAttach(); };
+}
+function bubble(m){
+  if(m.role==="user") return `<div class="msg me">${esc(m.content)}${m.img?`<span class="imgtag">📷 Photo attached</span>`:""}</div>`;
+  return `<div class="msg ai"><div class="md">${m.pending?thinking():md(m.content)}</div>${m.err?`<p class="banner" style="margin:8px 0 0">${esc(m.err)}</p>`:""}</div>`;
+}
+async function sendChat(text){
+  if(chatBusy) return;
+  const img = pendingImg; pendingImg = null;
+  chat.push({role:"user", content:text, img:!!img});
+  const aiMsg = {role:"assistant", content:"", pending:true}; chat.push(aiMsg);
+  chatBusy = true; if(tab==="tutor") render();
+  const log = $("#chatLog"); const node = log?.lastElementChild;
+  window.scrollTo({top:document.body.scrollHeight, behavior:"smooth"});
+  chatCtl = new AbortController();
+  const turns = chat.filter(m=>m!==aiMsg && !m.err && (m.role==="user" || m.content)).slice(-14).map(m=>({role:m.role, content: m.content + (m.img?"\n[The student attached a photo with this message.]":"")}));
+  while(turns.length && turns[0].role!=="user") turns.shift();
+  const ctx = RULES() + (chatTopic && TOPIC[chatTopic] ? `\n\nThe student is currently studying: ${TOPIC[chatTopic].name} (${TOPIC[chatTopic].short}).` : "") + (img? "\n\nIf a photo is attached, read it carefully. If it is the student's working, mark it line by line: what is right, the exact line that is wrong, why, and the correct version. If it is a past paper question, help them solve it step by step." : "");
+  try{
+    const opts = {signal:chatCtl.signal, cache:false, onText:({text})=>{ aiMsg.pending=false; aiMsg.content=text; const n=$("#chatLog")?.lastElementChild; if(n && tab==="tutor") n.querySelector(".md").innerHTML = md(text); }};
+    if(img) opts.images = [img.file];
+    const r = await aiCall([{role:"user",content:ctx}, ...turns], opts);
+    aiMsg.pending=false; aiMsg.content = r.text;
+    S.n.tutor++; if(img){ S.n.photo++; }
+    const k="tutor"; if((S.lessonDay[k+today()]||0) < 10){ S.lessonDay[k+today()] = (S.lessonDay[k+today()]||0)+1; addXP(img?8:4, img?"photo checked":"asked Coach"); } else { checkBadges(); save(); }
+  }catch(e){
+    aiMsg.pending=false; aiMsg.content = e.text || "";
+    if(e.code!=="cancelled") aiMsg.err = aiErr(e); else if(!aiMsg.content) aiMsg.content = "_Stopped._";
+  }
+  chatBusy = false; if(tab==="tutor") render();
+}
+
+function viewCoachDoor(v){
+  const t = chatTopic && TOPIC[chatTopic];
+  v.innerHTML = `<div class="hero"><div class="ledgerlines"></div><span class="eyebrow" style="color:inherit;opacity:.8">Needs internet</span><h2>Ask Coach</h2>
+    <p style="margin:0">Coach opens in Claude. Ask anything, get step-by-step lessons with diagrams, send a photo of your working, or get a Paper 02 question marked.</p>
+    <a class="btn gold" style="text-decoration:none" href="${coachLink()}" target="_blank" rel="noopener">Open Coach${t?": "+esc(t.name):""} ↗</a></div>
+  <div class="card"><span class="eyebrow">Your points come back here</span><p style="margin:6px 0 0">When you finish with Coach, tap <b>Add XP to app</b> at the top of the Coach page. Your XP, streak and badges all stay in this app.</p></div>
+  <div class="card"><span class="eyebrow">Open Coach on a topic</span><div class="chips" style="flex-wrap:wrap;margin-top:8px">${TOPICS.map(x=>`<a class="chip" style="text-decoration:none;color:inherit" href="${ONLINE_URL}#${x.id}" target="_blank" rel="noopener">${esc(x.name)}</a>`).join("")}</div></div>`;
+}
+
+/* =================== PRACTICE =================== */
+function viewPractice(v){
+  v.innerHTML = `
+  <div><h2 style="font-size:26px">Practice</h2><p class="muted" style="margin:4px 0 0">Exam-style questions, written fresh for you every time.</p></div>
+  ${aiReady && !AI?aiBanner():""}
+  <div class="card"><span class="eyebrow">Paper 01 · multiple choice</span><h3 style="margin-top:4px">10-question mixed quiz</h3><p class="muted" style="margin:0 0 10px">Mixes your weak topics with the rest of the syllabus.</p><button class="btn gold block" id="pP1">Start Paper 01 practice</button></div>
+  <div class="card"><span class="eyebrow">Paper 02 · structured</span><h3 style="margin-top:4px">Long question, marked by Coach</h3><p class="muted" style="margin:0 0 10px">Answer like the real exam. Coach gives marks for each part, shows where you lost them and how to fix it.</p>
+    <label class="lab" for="p2t">Topic</label><select class="field" id="p2t">${TOPICS.map(t=>`<option value="${t.id}" ${t.id===(weakTopics(1)[0]?.id||"finalaccounts")?"selected":""}>${esc(t.name)}</option>`).join("")}</select>
+    ${STANDALONE?`<a class="btn block" style="margin-top:10px;text-decoration:none" href="${ONLINE_URL}#paper2" target="_blank" rel="noopener">Open Paper 02 in Coach ↗</a>`:`<button class="btn block" id="pP2" style="margin-top:10px" ${AI?"":"disabled"}>Write me a Paper 02 question</button>`}</div>
+  <div class="card"><span class="eyebrow">Past paper help</span><h3 style="margin-top:4px">Stuck on a past paper question?</h3><p class="muted" style="margin:0 0 10px">Type it or ${aiImages?"snap a photo of it. ":"paste it. "}Coach will give you hints first, or the full worked solution if you ask.</p>
+    ${STANDALONE?`<a class="btn ghost" style="text-decoration:none" href="${ONLINE_URL}" target="_blank" rel="noopener">Open Coach for past paper help ↗</a>`:""}
+    <textarea class="field" id="ppQ" placeholder="Type or paste the question here…" ${STANDALONE?"hidden":""}></textarea>
+    <div id="ppAttach" style="margin-top:8px"></div>
+    <div class="grid2" style="margin-top:10px" ${STANDALONE?"hidden":""}>
+      <button class="btn ghost" id="ppHint" ${AI?"":"disabled"}>Give me a hint</button>
+      <button class="btn" id="ppFull" ${AI?"":"disabled"}>Full worked solution</button>
+      ${aiImages?`<button class="btn line" id="ppCam" style="grid-column:1/-1">${ico("cam")} Add a photo of the question</button>`:""}
+    </div></div>
+  ${COACH_MODE?"":`<div class="card"><span class="eyebrow">Flashcards</span><h3 style="margin-top:4px">${CARDS.length} key POA terms</h3><p class="muted" style="margin:0 0 10px">Flip, test yourself, and see how many you know.</p><button class="btn ghost block" id="pCards">Start flashcards</button></div>
+  <div class="card"><span class="eyebrow">Game</span><h3 style="margin-top:4px">Debit or Credit?</h3><p class="muted" style="margin:0 0 10px">45 seconds. How many entries can you get right? Best: ${S.game.best||0}</p><button class="btn ghost block" id="pGame">Play</button></div>`}
+  <div class="card"><span class="eyebrow">Real past papers</span><div class="view" style="gap:8px;margin-top:8px">${LINKS.map(l=>`<a class="linkcard" href="${l.u}" target="_blank" rel="noopener"><b>${esc(l.n)} ↗</b><span class="muted" style="font-size:14px">${esc(l.d)}</span></a>`).join("")}</div></div>`;
+  $("#pP1").onclick = ()=>startQuiz({paper1:true, n:10});
+  if($("#pP2")) $("#pP2").onclick = ()=>startStructured($("#p2t").value);
+  if($("#pGame")) $("#pGame").onclick = ()=>go("game");
+  if($("#pCards")) $("#pCards").onclick = ()=>{ FC=null; go("cards"); };
+  let ppImg = null;
+  const showPP = ()=>{ $("#ppAttach").innerHTML = ppImg?`<div class="attach"><img src="${ppImg.url}" alt="Question photo"><span style="flex:1">Photo attached</span></div>`:""; };
+  if($("#ppCam")) $("#ppCam").onclick = ()=>pickImage(()=>{ ppImg=pendingImg; pendingImg=null; showPP(); });
+  const send = full => { const q=$("#ppQ").value.trim(); if(!q && !ppImg){ toast("Type the question or add a photo first."); return; }
+    chatTopic=null; pendingImg = ppImg;
+    pendingChat = (full?"Please give me the full worked solution to this past paper question, step by step, with all working and the layout the examiners expect.":"Help me with this past paper question. Give me ONE hint for the first step only and let me try before you show more.") + (q?`\n\nQuestion:\n${q}`:"\n\n(The question is in my photo.)");
+    go("tutor"); };
+  $("#ppHint").onclick = ()=>send(false); $("#ppFull").onclick = ()=>send(true);
+}
+
+/* ---- Paper 02 structured ---- */
+let P2 = null;
+async function startStructured(topicId){
+  P2 = {topic:topicId, loading:true, q:null, answers:{}, marking:false, result:null, err:""};
+  go("structured");
+  const t = TOPIC[topicId];
+  try{
+    const q = await aiJSON(`You write CXC CSEC Principles of Accounts Paper 02 (structured) questions for a student in Trinidad and Tobago.
+Topic: ${t.name} (${t.short}).
+Write ONE realistic exam-style question worth 12-20 marks, set in a Caribbean business with TT$ figures, with 3-4 parts that build on each other (e.g. define/explain, prepare an account or statement, calculate, comment). Make every figure consistent and solvable.
+Reply with only JSON: {"title": "short title", "scenario": "the information given, in Markdown (use a Markdown table for lists of balances)", "parts": [{"label": "(a)", "task": "what to do", "marks": number}]}
+Random seed: ${Math.random().toString(36).slice(2,8)}`);
+    if(!q || !Array.isArray(q.parts) || !q.parts.length) throw {code:"invalid_json"};
+    P2.q = {title:String(q.title||t.name), scenario:String(q.scenario||""), parts:q.parts.map(p=>({label:String(p.label||""), task:String(p.task||""), marks:+p.marks||0}))};
+  }catch(e){ P2.err = aiErr(e); }
+  P2.loading=false; if(tab==="structured") render();
+}
+function viewStructured(v){
+  if(!P2) return go("practice");
+  const t = TOPIC[P2.topic];
+  const head = `<button class="back" id="bk">← Practice</button>`;
+  if(P2.loading){ v.innerHTML = head+`<div class="card"><span class="eyebrow">Paper 02 · ${esc(t.name)}</span><h3 style="margin-top:6px">Coach is setting your question</h3><p class="muted">Usually 20–60 seconds.</p>${thinking("Writing the question")}</div>`; $("#bk").onclick=()=>{P2=null;go("practice");}; return; }
+  if(P2.err && !P2.q){ v.innerHTML = head+`<div class="card"><p class="banner">${esc(P2.err)}</p><button class="btn" id="retry" style="margin-top:10px">Try again</button></div>`; $("#bk").onclick=()=>go("practice"); $("#retry").onclick=()=>startStructured(P2.topic); return; }
+  const q=P2.q, total=q.parts.reduce((s,p)=>s+p.marks,0), R=P2.result;
+  v.innerHTML = head + `
+  <div class="card"><span class="eyebrow">Paper 02 · ${esc(t.name)} · ${total} marks</span><h3 style="margin-top:4px">${esc(q.title)}</h3><div class="md" style="margin-top:8px">${md(q.scenario)}</div>
+   ${q.parts.map((p,k)=>{ const r=R?.parts?.[k];
+    return `<div class="part"><div class="row" style="justify-content:space-between"><b>${esc(p.label)} ${esc(p.task)}</b><span class="score">${r?`${r.awarded}/${p.marks}`:`${p.marks} mark${p.marks===1?"":"s"}`}</span></div>
+     ${R?`<div class="md muted" style="white-space:pre-wrap;font-size:14px">${esc(P2.answers[k]||"(no answer)")}</div>
+      ${r?`<div class="fb ${r.awarded>=p.marks?"ok":"bad"}"><div>${md(r.feedback||"")}</div>${r.fix && r.awarded<p.marks?`<div class="fixbox"><span class="lbl">How to fix it</span><div class="md">${md(r.fix)}</div></div>`:""}</div>`:""}`
+     :`<textarea class="field mono" id="ans${k}" placeholder="Your answer. For accounts, type one line per entry, e.g. Cash  Dr 500" aria-label="Answer to part ${esc(p.label)}">${esc(P2.answers[k]||"")}</textarea>`}
+    </div>`;}).join("")}
+  </div>
+  ${R?`<div class="hero"><div class="ledgerlines"></div><span class="eyebrow" style="color:inherit;opacity:.8">Your mark</span><div class="big">${R.total}/${total}</div><h2>${esc(R.summary||"")}</h2></div>
+     ${R.model?`<div class="card"><span class="eyebrow">Model answer</span><div class="md" style="margin-top:8px">${md(R.model)}</div></div>`:""}
+     <div class="grid2"><button class="btn" id="p2again">New question</button><button class="btn ghost" id="p2ask">Discuss with Coach</button></div>`
+   :`${P2.err?`<p class="banner">${esc(P2.err)}</p>`:""}<div id="p2Attach"></div>
+     <div class="grid2">${aiImages?`<button class="btn line" id="p2cam">${ico("cam")} Photo of my working</button>`:""}<button class="btn gold" id="p2mark" ${P2.marking?"disabled":""}>${P2.marking?"Marking…":"Mark my answer"}</button></div>
+     ${P2.marking?`<div class="card">${thinking("Coach is marking like a CXC examiner")}</div>`:""}`}`;
+  $("#bk").onclick = ()=>{ P2=null; go("practice"); };
+  if(!R){
+    q.parts.forEach((_,k)=>{ const el=$("#ans"+k); if(el) el.oninput=()=>{ P2.answers[k]=el.value; }; });
+    const showA=()=>{ const a=$("#p2Attach"); if(a) a.innerHTML = P2.img?`<div class="attach"><img src="${P2.img.url}" alt="Working photo"><span style="flex:1">Photo of working attached</span></div>`:""; };
+    showA();
+    if($("#p2cam")) $("#p2cam").onclick=()=>pickImage(()=>{ P2.img=pendingImg; pendingImg=null; showA(); });
+    $("#p2mark").onclick = markStructured;
+  } else {
+    $("#p2again").onclick = ()=>startStructured(P2.topic);
+    $("#p2ask").onclick = ()=>{ chatTopic=P2.topic; pendingChat=`I just did this Paper 02 question and got ${R.total}/${total}.\n\n${q.title}\n${q.scenario}\n\n${q.parts.map((p,k)=>`${p.label} ${p.task}\nMy answer: ${P2.answers[k]||"(blank)"}`).join("\n\n")}\n\nHelp me understand the parts I lost marks on.`; go("tutor"); };
+  }
+}
+async function markStructured(){
+  const q=P2.q;
+  if(!q.parts.some((_,k)=>(P2.answers[k]||"").trim()) && !P2.img){ toast("Write an answer or add a photo first."); return; }
+  P2.marking=true; P2.err=""; render();
+  try{
+    const opts = {};
+    if(P2.img) opts.images=[P2.img.file];
+    const r = await aiJSON(`You are a fair, encouraging CXC CSEC Principles of Accounts examiner marking a Trinidad and Tobago student's Paper 02 answer. Mark against the CSEC standard: award method marks for correct working even if the final figure is wrong, and accept correct alternative layouts and older terms.
+Question: ${q.title}
+${q.scenario}
+
+${q.parts.map((p,k)=>`${p.label} ${p.task} [${p.marks} marks]\nStudent's answer: ${(P2.answers[k]||"").trim()||"(left blank"+(P2.img?" – see the attached photo of the student's working)":")")}`).join("\n\n")}
+
+Reply with only JSON: {"parts": [{"awarded": number, "feedback": "1-3 sentences: what they got right, then exactly which line or figure is wrong and why", "fix": "the correct working for what they missed, step by step (Markdown, use a table for accounts)"}], "total": number, "summary": "one encouraging sentence on how to improve", "model": "a full model answer in Markdown with tables for accounts/statements"}
+The parts array must have exactly ${q.parts.length} items in order.`, Object.assign(opts,{effort:"medium"}));
+    if(!r || !Array.isArray(r.parts)) throw {code:"invalid_json"};
+    r.parts = q.parts.map((p,k)=>{ const x=r.parts[k]||{}; return {awarded:Math.max(0,Math.min(p.marks, Math.round(+x.awarded||0))), feedback:String(x.feedback||""), fix:String(x.fix||"")}; });
+    r.total = r.parts.reduce((s,p)=>s+p.awarded,0);
+    P2.result = r; P2.marking=false;
+    S.n.structured++; if(P2.img) S.n.photo++;
+    const total=q.parts.reduce((s,p)=>s+p.marks,0); const pct=Math.round(r.total/Math.max(1,total)*100);
+    const st=topicStat(P2.topic); st.attempts++; st.best=Math.max(st.best,pct);
+    if(pct<60) logMistake(P2.topic, q.title+" (Paper 02)", `${r.total}/${total}`, "See model answer", r.summary);
+    addXP(15 + r.total*2, "Paper 02 marked");
+  }catch(e){ P2.marking=false; P2.err = aiErr(e); }
+  if(tab==="structured") render();
+}
+
+/* =================== GAME =================== */
+let G = null, gTimer = null;
+function stopGame(){ if(gTimer){ clearInterval(gTimer); gTimer=null; } }
+function viewGame(v){
+  if(!G || G.state==="intro"){
+    G = {state:"intro"};
+    v.innerHTML = `<button class="back" id="bk">← Back</button>
+    <div class="hero"><div class="ledgerlines"></div><span class="eyebrow" style="color:inherit;opacity:.8">Game · 45 seconds</span><h2>Debit or Credit?</h2>
+    <p style="margin:0">You'll see a transaction and one account. Tap <b>Dr</b> if that account is debited, <b>Cr</b> if it is credited. Streaks of 3 earn bonus points.</p>
+    <div class="stats"><div class="stat"><b>${S.game.best||0}</b><span>your best</span></div><div class="stat"><b>45s</b><span>time</span></div><div class="stat"><b>2</b><span>XP per point</span></div></div></div>
+    <button class="btn gold block" id="gStart">Start</button>
+    <div class="card"><span class="eyebrow">Remember</span><p style="margin:6px 0 0"><b>DEAD CLIC</b>: Debit increases Expenses, Assets, Drawings. Credit increases Liabilities, Income, Capital.</p></div>`;
+    $("#bk").onclick=()=>go("practice"); $("#gStart").onclick=startGame; return;
+  }
+  if(G.state==="over"){
+    v.innerHTML = `<div class="hero"><div class="ledgerlines"></div><span class="eyebrow" style="color:inherit;opacity:.8">Time's up</span><div class="big">${G.score}</div><h2>${G.newBest?"New personal best!":`Best: ${S.game.best}`}</h2><p style="margin:0">${G.right} right, ${G.wrong.length} wrong.</p></div>
+    ${G.wrong.length?`<div class="card"><span class="eyebrow">Fix these</span><div class="view" style="gap:10px;margin-top:8px">${G.wrong.slice(0,6).map(w=>`<div class="mistake"><b>${esc(w[0])}</b><span>${esc(w[1])} is <b>${w[2]==="D"?"debited":"credited"}</b>. ${esc(explainDC(w))}</span></div>`).join("")}</div></div>`:""}
+    <div class="grid2"><button class="btn gold" id="gAgain">Play again</button><button class="btn ghost" id="gBack">Done</button></div>`;
+    $("#gAgain").onclick=startGame; $("#gBack").onclick=()=>{G=null;go("practice");}; return;
+  }
+  const c = G.deck[G.i % G.deck.length];
+  v.innerHTML = `
+  <div class="row" style="justify-content:space-between"><span class="big" style="font-size:32px">${G.score}</span><span class="eyebrow">${G.combo>=3?`🔥 Combo x${G.combo}`:"Score"}</span></div>
+  <div class="timer"><i id="gBar" style="width:${G.left/45*100}%"></i></div>
+  <div class="gcard ${G.flash||""}" id="gCard"><div class="tx">${esc(c[0])}</div><span class="muted">Which side for this account?</span><span class="acct">${esc(c[1])}</span></div>
+  <div class="dc"><button class="btn" style="background:var(--dr);color:#fff" data-dc="D">Dr</button><button class="btn" style="background:var(--cr);color:#fff" data-dc="C">Cr</button></div>`;
+  v.querySelectorAll("[data-dc]").forEach(b=>b.onclick=()=>answerDC(b.dataset.dc));
+}
+function explainDC(w){
+  const a = w[1].toLowerCase();
+  if(/sales|commission|rent received|discount received|returns outwards/.test(a)) return "Income (or a reduction of purchases) increases on the credit side.";
+  if(/capital|loan|furniture world|ramdass/.test(a)) return w[2]==="C"?"Liabilities and capital increase on the credit side.":"Paying back a liability reduces it, so debit it.";
+  if(/drawings/.test(a)) return "Drawings increase on the debit side.";
+  if(/bad debts|wages|electricity|insurance|discount allowed|returns inwards|purchases/.test(a)) return "Expenses (and purchases, returns inwards) increase on the debit side.";
+  return w[2]==="D"?"This asset (or what someone owes us) increases, or a liability decreases, so it is debited.":"This asset decreases (money or value going out), or the person now owes us less, so it is credited.";
+}
+function startGame(){
+  stopGame();
+  G = {state:"play", deck:shuffle(GAME), i:0, score:0, right:0, combo:0, wrong:[], left:45, flash:""};
+  render();
+  const t0 = Date.now();
+  gTimer = setInterval(()=>{ G.left = Math.max(0, 45 - (Date.now()-t0)/1000); const b=$("#gBar"); if(b) b.style.width=(G.left/45*100)+"%"; if(G.left<=0) endGame(); }, 200);
+}
+function answerDC(side){
+  if(G.state!=="play") return;
+  const c = G.deck[G.i % G.deck.length];
+  if(side===c[2]){ G.combo++; G.right++; G.score += 1 + (G.combo>=3?1:0); G.flash="flashok"; }
+  else { G.combo=0; G.wrong.push(c); G.flash="flashbad"; }
+  G.i++; render(); setTimeout(()=>{ G.flash=""; const gc=$("#gCard"); if(gc) gc.className="gcard"; }, 300);
+}
+function endGame(){
+  stopGame(); G.state="over";
+  G.newBest = G.score > (S.game.best||0); if(G.newBest) S.game.best = G.score;
+  G.wrong.forEach(w=>{ const t=topicStat("doubleentry"); t.wrong++; });
+  if(G.score>0) addXP(G.score*2, "Debit or Credit"); else save();
+  render();
+}
+
+/* =================== ME =================== */
+function viewMe(v){
+  const L = levelOf(S.xp), lo=levelFloor(L), hi=levelFloor(L+1);
+  const week = [...Array(7)].map((_,k)=>{ const d=new Date(); d.setDate(d.getDate()-(6-k)); const s=dstr(d); return {s, x:S.days[s]||0, l:"SMTWTFS"[d.getDay()]}; });
+  const mx = Math.max(DAILY_GOAL, ...week.map(w=>w.x));
+  v.innerHTML = `
+  <div class="hero"><div class="ledgerlines"></div><span class="eyebrow" style="color:inherit;opacity:.8">Level ${L}</span><h2>${esc(S.name)}, ${esc(levelName(L))}</h2>
+    <div><div class="bar" style="background:rgba(255,255,255,.2)"><i style="width:${Math.round((S.xp-lo)/(hi-lo)*100)}%;background:#FFC94A"></i></div><span style="font-size:13px;opacity:.85">${hi-S.xp} XP to ${esc(levelName(L+1))}</span></div>
+    <div class="stats"><div class="stat"><b>${S.xp.toLocaleString()}</b><span>total XP</span></div><div class="stat"><b>${S.best}</b><span>best streak</span></div><div class="stat"><b>${S.n.quiz+S.n.daily}</b><span>quizzes</span></div></div></div>
+  <div class="card"><span class="eyebrow">This week</span>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end;height:110px;margin-top:10px">
+    ${week.map(w=>`<div style="display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end"><span style="font-size:11px;font-variant-numeric:tabular-nums" class="muted">${w.x||""}</span><div style="width:100%;max-width:28px;border-radius:6px 6px 2px 2px;height:${Math.max(4,Math.round(w.x/mx*70))}px;background:${w.x>=DAILY_GOAL?"var(--green)":w.x?"var(--gold)":"var(--line)"}"></div><b style="font-size:12px">${w.l}</b></div>`).join("")}
+    </div></div>
+  <div class="card"><span class="eyebrow">Mistakes notebook</span>
+    ${S.mistakes.length?`<div class="view" style="gap:12px;margin-top:8px">${S.mistakes.slice(0,8).map((m,k)=>`<div class="mistake"><span class="eyebrow">${esc(TOPIC[m.t]?.name||"")}</span><b>${esc(m.q)}</b><span>You said: ${esc(m.chosen)} · Correct: ${esc(m.correct)}</span>${m.fix?`<span class="muted">${esc(m.fix)}</span>`:""}<button class="btn line sm" data-mk="${k}" style="align-self:flex-start">Go over it with Coach</button></div>`).join("")}</div>`
+    :`<p class="muted" style="margin:6px 0 0">Questions you get wrong will be saved here so you can fix them later.</p>`}</div>
+  <div class="card"><span class="eyebrow">Topic mastery</span><div class="view" style="gap:8px;margin-top:8px">
+    ${TOPICS.map(t=>{const m=mastery(t.id);return `<div class="row" style="flex-wrap:nowrap"><span style="flex:1;min-width:0;font-size:14px">${esc(t.name)}</span><div class="bar" style="width:30%"><i style="width:${m||0}%"></i></div><span class="mono" style="font-family:var(--f-mono);font-size:12px;width:36px;text-align:right">${m===null?"–":m+"%"}</span></div>`;}).join("")}
+  </div></div>
+  <div class="card"><span class="eyebrow">Settings</span>
+    <div class="view" style="gap:10px;margin-top:8px">
+      <div><label class="lab" for="rn">Name</label><div class="row" style="flex-wrap:nowrap"><input class="field" id="rn" value="${esc(S.name)}" maxlength="30"><button class="btn sm" id="rnSave">Save</button></div></div>
+      <p class="muted" style="margin:0;font-size:14px">Progress is saved to your Claude account when you're signed in, and on this device. Exam countdown: May/June 2028.</p>
+      <div id="resetZone"><button class="btn line sm" id="rst">Reset all progress</button></div>
+    </div></div>`;
+  $("#rnSave").onclick=()=>{ const n=$("#rn").value.trim(); if(n){ S.name=n; save(); toast("Name saved"); render(); } };
+  $("#rst").onclick=()=>{ $("#resetZone").innerHTML = `<p style="margin:0 0 8px"><b>Delete all XP, streaks, badges and mistakes?</b> This can't be undone.</p><div class="row"><button class="btn red sm" id="rstY">Yes, reset</button><button class="btn line sm" id="rstN">Cancel</button></div>`;
+    $("#rstY").onclick=()=>{ const n=S.name; S=DEF(); S.name=n; save(); toast("Progress reset"); go("home"); }; $("#rstN").onclick=()=>render(); };
+  v.querySelectorAll("[data-mk]").forEach(b=>b.onclick=()=>{ const m=S.mistakes[+b.dataset.mk]; S.n.review++; checkBadges(); save(); chatTopic=m.t; pendingChat=`I got this wrong earlier:\n\n${m.q}\nI said: ${m.chosen}\nCorrect: ${m.correct}\n\nExplain step by step why, then give me a similar question to try.`; go("tutor"); });
+}
+
+/* =================== VISUALS =================== */
+const fmt = n => { n = Math.round((+n||0)*100)/100; const a = Math.abs(n).toLocaleString("en-US",{maximumFractionDigits:2}); return n<0 ? `(${a})` : a; };
+const money = n => (n<0?"($":"$") + Math.abs(Math.round((+n||0)*100)/100).toLocaleString("en-US",{maximumFractionDigits:2}) + (n<0?")":"");
+
+function tAccountHTML(a, newKeys){
+  const norm = arr => (Array.isArray(arr)?arr:[]).map(x=>Array.isArray(x)?[String(x[0]??""), +x[1]||0, x[2]]:[String(x?.label??x?.details??""), +(x?.amount??x?.amt)||0, x?.k]);
+  let D = norm(a.dr), C = norm(a.cr);
+  const sD = D.reduce((s,x)=>s+x[1],0), sC = C.reduce((s,x)=>s+x[1],0);
+  let bd = null, total = null;
+  if(a.balance && (D.length||C.length)){
+    const diff = sD - sC;
+    if(diff>0){ C.push(["Balance c/d", diff, "cd"]); bd = ["d", diff]; }
+    else if(diff<0){ D.push(["Balance c/d", -diff, "cd"]); bd = ["c", -diff]; }
+    total = Math.max(sD, sC);
+  }
+  const ent = (x, side, i) => `<div class="e ${x[2]==="cd"?"cd":""} ${newKeys&&newKeys.has(a.name+side+i)?"new":""}"><span>${esc(x[0])}</span><b>${fmt(x[1])}</b></div>`;
+  const totRow = total!==null && (bd || sD===sC) ? `<div class="e tot"><span></span><b>${fmt(total)}</b></div>` : "";
+  const bdRow = side => bd && bd[0]===side ? `<div class="e bd"><span>Balance b/d</span><b>${fmt(bd[1])}</b></div>` : "";
+  return `<div class="tacc"><div class="tn">${esc(a.name||"Account")}</div><div class="tb">
+    <div class="side d"><span class="sh">DR</span>${D.map((x,i)=>ent(x,"d",i)).join("")}${totRow}${bdRow("d")}</div>
+    <div class="side c"><span class="sh">CR</span>${C.map((x,i)=>ent(x,"c",i)).join("")}${totRow}${bdRow("c")}</div></div></div>`;
+}
+function tAccountsHTML(d){
+  const accs = Array.isArray(d.accounts) ? d.accounts : (d.name ? [d] : []);
+  return `<div class="vis">${d.title?`<div class="vis-title">${esc(d.title)}</div>`:""}<div class="tgrid">${accs.map(a=>tAccountHTML(a)).join("")}</div>${dcLegend()}</div>`;
+}
+const dcLegend = () => `<div class="legend"><span class="tag-dr">Dr = debit (left)</span><span class="tag-cr">Cr = credit (right)</span></div>`;
+function ladderHTML(d, step=null){
+  const rows = (d.rows||[]).map(r=>{ const label=String(r[0]??""), v=+r[1]||0; const tot=/^=/.test(label.trim()); return {label:label.replace(/^=\s*/,""), v, tot, note:r[2]}; });
+  const mx = Math.max(1, ...rows.map(r=>Math.abs(r.v)));
+  return `<div class="vis">${d.title?`<div class="vis-title">${esc(d.title)}</div>`:""}<div class="ladder">${rows.map((r,i)=>
+    `<div class="lr ${r.tot?"tot":r.v<0?"neg":"pos"} ${step!==null&&i>step?"dim":""} ${step===i?"now":""}"><span class="ll">${r.tot?"= ":r.v<0?"− ":"+ "}${esc(r.label)}</span><span class="lb"><i style="width:${step!==null&&i>step?0:Math.round(Math.abs(r.v)/mx*100)}%"></i></span><span class="lv">${fmt(r.v)}</span></div>`).join("")}</div>
+    ${d.caption?`<div class="muted" style="font-size:13px">${esc(d.caption)}</div>`:""}</div>`;
+}
+function flowHTML(d, lit=-1){
+  const steps = (d.steps||[]).map(s=>typeof s==="string"?{t:s}:{t:String(s.t??s.title??s.step??""), s:s.s??s.detail??s.example});
+  return `<div class="vis">${d.title?`<div class="vis-title">${esc(d.title)}</div>`:""}<div class="flow">${steps.map((s,i)=>
+    `${i?'<div class="ar" aria-hidden="true">▼</div>':""}<div class="fs ${lit===-2||i===lit?"lit":""}"><span class="n">${i+1}</span><span><b>${esc(s.t)}</b>${s.s?`<small>${esc(s.s)}</small>`:""}</span></div>`).join("")}</div></div>`;
+}
+function compareHTML(d){
+  const it = (d.items||[]).map(x=>[String(x[0]), +x[1]||0]); const mx = Math.max(1,...it.map(x=>Math.abs(x[1])));
+  const cols = ["var(--dr)","var(--cr)","var(--green)","var(--gold)"];
+  return `<div class="vis">${d.title?`<div class="vis-title">${esc(d.title)}</div>`:""}<div class="ladder">${it.map((x,i)=>
+    `<div class="lr"><span class="ll">${esc(x[0])}</span><span class="lb"><i style="width:${Math.round(Math.abs(x[1])/mx*100)}%;background:${cols[i%4]}"></i></span><span class="lv">${fmt(x[1])}</span></div>`).join("")}</div>
+    ${d.caption?`<div style="font-family:var(--f-display);font-weight:800;font-size:20px">${esc(d.caption)}</div>`:""}</div>`;
+}
+function dcChartHTML(){
+  return `<div class="dcchart"><div class="d"><h4>DEBIT side increases</h4><big>D·E·A·D</big><span><b>D</b>ebit → <b>E</b>xpenses, <b>A</b>ssets, <b>D</b>rawings</span></div>
+  <div class="c"><h4>CREDIT side increases</h4><big>C·L·I·C</big><span><b>C</b>redit → <b>L</b>iabilities, <b>I</b>ncome, <b>C</b>apital</span></div></div>
+  <p class="muted" style="margin:0;font-size:13px">To make one of these go DOWN, use the opposite side.</p>`;
+}
+/* Coach's fenced visuals */
+const VIS_FENCE = {taccounts:tAccountsHTML, taccount:tAccountsHTML, ledger:tAccountsHTML, ladder:ladderHTML, flow:flowHTML, compare:compareHTML};
+function fenceVisual(lang, body){
+  const f = VIS_FENCE[(lang||"").toLowerCase()]; if(!f) return null;
+  try{ return `<div class="card" style="padding:12px;margin:0 0 10px">${f(JSON.parse(body))}</div>`; }catch(e){ return null; }
+}
+
+/* ---- Topic visual lessons ---- */
+const STORY = {title:"Aaliyah's doubles stand", tx:[
+ {d:"Aaliyah starts the business with $5,000 cash.", dr:"Cash", cr:"Capital", amt:5000, why:"Cash is an asset and it goes up, so debit Cash. The owner's investment increases Capital, so credit Capital."},
+ {d:"She buys a cart and equipment for $1,800 cash.", dr:"Equipment", cr:"Cash", amt:1800, why:"Equipment (an asset) goes up: debit. Cash goes down: credit."},
+ {d:"She buys channa and flour on credit from Hosein's Wholesale, $900.", dr:"Purchases", cr:"Hosein's Wholesale", amt:900, why:"Purchases (goods for resale) go up: debit. She now owes Hosein's, a liability: credit."},
+ {d:"Cash sales for the week come to $2,400.", dr:"Cash", cr:"Sales", amt:2400, why:"Cash goes up: debit. Sales are income, and income goes up on the credit side."},
+ {d:"She pays Hosein's Wholesale the $900 in cash.", dr:"Hosein's Wholesale", cr:"Cash", amt:900, why:"The amount owed (liability) goes down: debit Hosein's. Cash goes down: credit."},
+ {d:"She pays $600 rent for her spot.", dr:"Rent", cr:"Cash", amt:600, why:"Rent is an expense. Expenses go up on the debit side. Cash goes down: credit."},
+]};
+function storyAccounts(n){
+  const order=[], acc={};
+  STORY.tx.slice(0,n).forEach((t,i)=>{
+    for(const [name,side,other] of [[t.dr,"dr",t.cr],[t.cr,"cr",t.dr]]){ if(!acc[name]){ acc[name]={name,dr:[],cr:[]}; order.push(name); } acc[name][side].push([other, t.amt]); }
+  });
+  return order.map(k=>acc[k]);
+}
+const EQ = {title:"Kevin's maxi taxi", tx:[
+ {d:"Kevin starts a maxi taxi business with $60,000 in the bank.", a:60000, l:0, c:60000, why:"Bank (asset) up $60,000. Capital up $60,000."},
+ {d:"He buys a used maxi for $150,000: $40,000 from the bank and a $110,000 credit union loan.", a:110000, l:110000, c:0, why:"Vehicle +$150,000, bank −$40,000, so assets rise by $110,000. The loan adds $110,000 to liabilities."},
+ {d:"He earns $8,000 in fares, paid in cash.", a:8000, l:0, c:8000, why:"Cash up $8,000. Income is profit, and profit belongs to the owner, so capital rises too."},
+ {d:"He pays $2,500 for fuel and repairs.", a:-2500, l:0, c:-2500, why:"Cash down $2,500. Expenses reduce profit, so capital falls."},
+ {d:"He takes $1,000 for personal use.", a:-1000, l:0, c:-1000, why:"Cash down. Drawings reduce capital."},
+ {d:"He repays $10,000 of the loan.", a:-10000, l:-10000, c:0, why:"Bank down $10,000 and the loan (liability) down $10,000. Capital doesn't change."},
+]};
+const CYCLE = {title:"The accounting cycle", steps:[
+ {t:"A transaction happens", s:"Marcus buys $600 of goods on credit from your hardware."},
+ {t:"Source document", s:"You send Marcus an invoice (No. 204)."},
+ {t:"Book of original entry", s:"The invoice is listed in the Sales Journal."},
+ {t:"Ledger (double entry)", s:"Dr Marcus $600, Cr Sales $600."},
+ {t:"Trial balance", s:"Check that total debits = total credits."},
+ {t:"Adjustments", s:"Accruals, prepayments, depreciation, bad debts."},
+ {t:"Financial statements", s:"Income Statement and Statement of Financial Position."},
+]};
+const DOCFLOW = {title:"From document to ledger", steps:[
+ {t:"Credit sale to Marcus, $600", s:"The transaction"},
+ {t:"Invoice sent", s:"Source document"},
+ {t:"Sales Journal", s:"Book of original entry"},
+ {t:"Dr Marcus $600 · Cr Sales $600", s:"Posted to the ledger"},
+]};
+const LADDERS = {
+ finalaccounts:{title:"Income Statement: from sales to net profit", rows:[["Sales",120000],["Returns inwards",-5000],["= Net sales",115000],["Cost of sales",-70000],["= Gross profit",45000],["Commission received",2000],["Expenses",-21500],["= Net profit",25500]]},
+ bankrec:{title:"Bank reconciliation statement", rows:[["Balance as per updated cash book",4200],["Unpresented cheque (Chen Bros)",1500],["Lodgement not yet credited",-800],["= Balance as per bank statement",4900]], caption:"Add unpresented cheques. Subtract lodgements the bank hasn't recorded yet."},
+ cashbook:{title:"Petty cash imprest system", rows:[["Imprest (float) at start",800],["Spent: stationery, fares, cleaning",-665],["= Cash left in the box",135],["Reimbursement from the cashier",665],["= Float restored",800]], caption:"Reimburse exactly what was spent."},
+ manufacturing:{title:"Building up the cost of production", rows:[["Direct materials",40000],["Direct labour",25000],["Direct expenses",3000],["= Prime cost",68000],["Factory overheads",12000],["Opening work in progress",4000],["Closing work in progress",-5000],["= Cost of production",79000]]},
+ payroll:{title:"From gross pay to net pay (example figures)", rows:[["Gross pay (basic + overtime)",8000],["NIS (employee's share)",-340],["PAYE income tax",-420],["Health Surcharge",-37],["Credit union (voluntary)",-500],["= Net pay",6703]], caption:"Real rates are set by law and change, so always use the figures in the question."},
+ incomplete:{title:"Finding profit from capital", rows:[["Closing capital",55000],["Opening capital",-40000],["= Increase in capital",15000],["Drawings",8000],["= Net profit",23000]], caption:"Drawings reduced capital, so add them back to find the real profit."},
+ npo:{title:"Sports club Income and Expenditure", rows:[["Subscriptions",18000],["Family fun day income",9500],["= Total income",27500],["Rent of hall",-6000],["Coaching fees",-12000],["Depreciation of equipment",-1500],["= Surplus",8000]], caption:"A club makes a surplus (not a profit)."},
+ companies:{title:"What happens to a company's profit", rows:[["Net profit for the year",80000],["Preference dividend",-6000],["Ordinary dividend",-20000],["Transfer to general reserve",-10000],["= Retained earnings for the year",44000]]},
+ partnership:{title:"Appropriation account: Kavi and Shania", rows:[["Net profit",60000],["Interest on drawings",1000],["= Profit to share",61000],["Interest on capital: Kavi",-3000],["Interest on capital: Shania",-2000],["Salary: Kavi",-6000],["= Residual profit (shared 3 : 2)",50000]]},
+};
+const VISUAL_FOR = {intro:"cycle", equation:"equation", sourcedocs:"docflow", doubleentry:"story", cashbook:"ladder", trialbalance:"story", bankrec:"ladder",
+  control:"control", finalaccounts:"ladder", adjustments:"depreciation", inventory:"fifo", ratios:"ratios", partnership:"ladder", companies:"ladder", npo:"ladder", manufacturing:"ladder", payroll:"ladder", incomplete:"ladder"};
+const VS = {}; // per-topic visual step state
+
+function visualCard(t){ return VISUAL_FOR[t.id] ? `<div class="card" id="visCard"><div class="row" style="justify-content:space-between"><span class="eyebrow">See it</span><span class="eyebrow" id="visHint"></span></div><div id="visBody" style="margin-top:8px"></div></div>` : ""; }
+function mountVisual(t){
+  const el = $("#visBody"); if(!el) return;
+  const kind = VISUAL_FOR[t.id]; const st = VS[t.id] ||= {step:0};
+  const ctl = (n, max, labelNext, extra="") => `<div class="stepper"><button class="btn line sm" data-v="back" ${n<=0?"disabled":""}>◀ Back</button><div class="dots2">${Array.from({length:max+1},(_,i)=>`<i class="${i<=n?"on":""}"></i>`).join("")}</div>${n<max?`<button class="btn sm" data-v="next">${labelNext} ▶</button>`:`<button class="btn ghost sm" data-v="reset">Start again</button>`}</div>${extra}`;
+  const finish = ()=>{ const k=t.id+"v"; if(S.lessonDay[k]!==today()){ S.lessonDay[k]=today(); addXP(5,"visual lesson"); } };
+  const bind = max => { el.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{ const a=b.dataset.v; st.step = a==="next"?Math.min(max,st.step+1):a==="back"?Math.max(0,st.step-1):0; mountVisual(t); if(st.step===max) finish(); }); };
+  if(kind==="story"){
+    const max = STORY.tx.length + (t.id==="trialbalance"?2:1);
+    const n = st.step, txN = Math.min(n, STORY.tx.length);
+    const accs = storyAccounts(txN);
+    const balanced = n > STORY.tx.length;
+    const newKeys = new Set(); if(n>=1 && n<=STORY.tx.length){ const tx=STORY.tx[n-1]; accs.forEach(a=>{ ["dr","cr"].forEach(side=>{ const i=a[side].length-1; if(i>=0 && ((side==="dr"&&a.name===tx.dr)||(side==="cr"&&a.name===tx.cr))) newKeys.add(a.name+side[0]+i); }); }); }
+    let cap;
+    if(n===0) cap = `<div class="cap"><span class="tx">${esc(STORY.title)}</span><span>Tap <b>Next</b> to watch each transaction go into the ledger. Every one has a <span class="tag-dr">debit</span> and a matching <span class="tag-cr">credit</span>.</span></div>`;
+    else if(n<=STORY.tx.length){ const tx=STORY.tx[n-1]; cap = `<div class="cap"><span class="eyebrow">Transaction ${n} of ${STORY.tx.length}</span><span class="tx">${esc(tx.d)}</span><div class="row"><span class="tag-dr">Dr ${esc(tx.dr)} ${money(tx.amt)}</span><span class="tag-cr">Cr ${esc(tx.cr)} ${money(tx.amt)}</span></div><span>${esc(tx.why)}</span></div>`; }
+    else if(n===STORY.tx.length+1) cap = `<div class="cap"><span class="tx">Balance the accounts</span><span>Add up each side. Put the difference on the smaller side as <i>Balance c/d</i>, then bring it down on the other side as <i>Balance b/d</i>. Hosein's is fully paid, so it has no balance.</span></div>`;
+    else cap = `<div class="cap"><span class="tx">Trial balance</span><span>List every balance b/d. Debit balances go in the Dr column, credit balances in the Cr column. If the double entry was right, the totals agree.</span></div>`;
+    let body;
+    if(n===STORY.tx.length+2){
+      const accsB = storyAccounts(STORY.tx.length).map(a=>{ const d=a.dr.reduce((s,x)=>s+x[1],0), c=a.cr.reduce((s,x)=>s+x[1],0); return {name:a.name, d:d>c?d-c:0, c:c>d?c-d:0}; }).filter(x=>x.d||x.c);
+      const td = accsB.reduce((s,x)=>s+x.d,0), tc = accsB.reduce((s,x)=>s+x.c,0);
+      body = `<div class="tbl" style="overflow-x:auto"><table class="tbtable"><thead><tr><th>Account</th><th class="d">Dr $</th><th class="c">Cr $</th></tr></thead><tbody>${accsB.map(x=>`<tr><td>${esc(x.name)}</td><td class="d">${x.d?fmt(x.d):""}</td><td class="c">${x.c?fmt(x.c):""}</td></tr>`).join("")}<tr class="tt"><td>Totals</td><td class="d">${fmt(td)}</td><td class="c">${fmt(tc)}</td></tr></tbody></table></div><p style="margin:0;font-weight:700;color:var(--green)">✓ ${fmt(td)} = ${fmt(tc)}. The books balance.</p>`;
+    } else body = accs.length ? `<div class="tgrid">${accs.map(a=>tAccountHTML(Object.assign({},a,{balance:balanced}), newKeys)).join("")}</div>` : dcChartHTML();
+    el.innerHTML = `<div class="vis">${cap}${body}${ctl(n, max, n===0?"Start":n<STORY.tx.length?"Next":n===STORY.tx.length?"Balance":"Trial balance")}</div>`;
+    $("#visHint").textContent = "Animated T-accounts";
+    bind(max);
+  } else if(kind==="equation"){
+    const n = st.step, max = EQ.tx.length;
+    let A=0,L=0,C=0; EQ.tx.slice(0,n).forEach(x=>{A+=x.a;L+=x.l;C+=x.c;});
+    const last = n? EQ.tx[n-1] : null; const sc = 170000;
+    const chg = v => v ? `<span class="chg ${v>0?"up":"down"}">${v>0?"+":"−"}${fmt(Math.abs(v))}</span>` : `<span class="chg"></span>`;
+    el.innerHTML = `<div class="vis">
+      <div class="cap">${last?`<span class="eyebrow">Transaction ${n} of ${max}</span><span class="tx">${esc(last.d)}</span><span>${esc(last.why)}</span>`:`<span class="tx">${esc(EQ.title)}</span><span>Watch both sides change. However many transactions happen, the two sides stay equal.</span>`}</div>
+      <div class="eqbox"><div class="ev"><span>Assets</span><b>${fmt(A)}</b>${chg(last?.a)}</div><span class="op">=</span><div class="ev"><span>Capital</span><b>${fmt(C)}</b>${chg(last?.c)}</div><span class="op">+</span><div class="ev"><span>Liabilities</span><b>${fmt(L)}</b>${chg(last?.l)}</div></div>
+      <div class="eqbars"><span class="eyebrow">Assets</span><div class="eqbar"><i style="width:${A/sc*100}%;background:var(--dr)"></i></div>
+      <span class="eyebrow">Capital + Liabilities</span><div class="eqbar"><i style="width:${C/sc*100}%;background:var(--gold)"></i><i style="width:${L/sc*100}%;background:var(--cr)"></i></div></div>
+      ${n?`<p style="margin:0;font-weight:700;color:var(--green)">✓ ${fmt(A)} = ${fmt(C)} + ${fmt(L)}</p>`:""}
+      ${ctl(n, max, n===0?"Start":"Next")}</div>`;
+    $("#visHint").textContent = "Always balanced";
+    bind(max);
+  } else if(kind==="cycle" || kind==="docflow"){
+    const d = kind==="cycle"?CYCLE:DOCFLOW; const max = d.steps.length-1; const n = st.step;
+    el.innerHTML = flowHTML(d, n) + ctl(n, max, "Next step");
+    $("#visHint").textContent = "Step through";
+    bind(max);
+  } else if(kind==="ladder"){
+    const d = LADDERS[t.id]; const max = d.rows.length-1; const n = st.step;
+    el.innerHTML = ladderHTML(d, n) + (t.id==="partnership" && n===max ? compareHTML({title:"Residual profit shared 3 : 2", items:[["Kavi (3/5)",30000],["Shania (2/5)",20000]], caption:"Kavi gets 3,000 + 6,000 + 30,000 = 39,000 in total"}) : "") + ctl(n, max, "Next line");
+    $("#visHint").textContent = "Line by line";
+    bind(max);
+  } else if(kind==="control"){
+    el.innerHTML = `<div class="vis"><div class="cap"><span class="tx">Sales Ledger Control Account</span><span>The left side is everything that makes customers owe MORE. The right side is everything that makes them owe LESS.</span></div>
+      <div class="tgrid">${tAccountHTML({name:"Sales Ledger Control", balance:true, dr:[["Balance b/d",12000],["Credit sales",30000],["Dishonoured cheque",800]], cr:[["Cash & cheques received",26500],["Discount allowed",600],["Returns inwards",1200],["Bad debts",500]]})}</div>${dcLegend()}</div>`;
+    $("#visHint").textContent = "Control account";
+  } else if(kind==="depreciation"){
+    const m = st.method || "sl"; const cost=90000, res=10000, life=4, rate=.4;
+    const years = [0,1,2,3,4].map(y=> m==="sl" ? cost - (cost-res)/life*y : cost*Math.pow(1-rate,y));
+    const dep = years.slice(1).map((v,i)=>years[i]-v);
+    el.innerHTML = `<div class="vis"><div class="row" style="justify-content:space-between"><div class="seg"><button class="${m==="sl"?"on":""}" data-m="sl">Straight-line</button><button class="${m==="rb"?"on":""}" data-m="rb">Reducing balance</button></div></div>
+      <div class="cap"><span class="tx">A delivery van costs $90,000</span><span>${m==="sl"?"Straight-line: ($90,000 − $10,000 residual) ÷ 4 years = <b>$20,000 every year</b>. The same charge each year.":"Reducing balance at 40%: 40% of the <b>net book value</b> each year, so the charge gets smaller every year."}</span></div>
+      <div class="vbars">${years.map((v,y)=>`<div class="vb"><span>${fmt(Math.round(v))}</span><i style="height:${Math.round(v/cost*110)}px;background:${m==="sl"?"var(--dr)":"var(--cr)"}"></i><span>Yr ${y}</span></div>`).join("")}</div>
+      <div class="tbl" style="overflow-x:auto"><table class="tbtable"><thead><tr><th>Year</th><th>Depreciation</th><th>Net book value</th></tr></thead><tbody>${dep.map((d,i)=>`<tr><td>Year ${i+1}</td><td>${fmt(Math.round(d))}</td><td>${fmt(Math.round(years[i+1]))}</td></tr>`).join("")}</tbody></table></div></div>`;
+    $("#visHint").textContent = "Compare methods";
+    el.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{ st.method=b.dataset.m; mountVisual(t); finish(); });
+  } else if(kind==="fifo"){
+    const m = st.method || "fifo", sold = !!st.sold;
+    const units = Array.from({length:20},(_,i)=>({b:i<10?1:2}));
+    const unitHTML = units.map((u,i)=>`<span class="unit ${m==="avco"?"avg":"b"+u.b} ${sold&&i<12?"sold":""}">${m==="avco"?"5.50":u.b===1?"$5":"$6"}</span>`).join("");
+    const closing = m==="fifo"?48:44, cos = m==="fifo"?62:66;
+    el.innerHTML = `<div class="vis"><div class="seg"><button class="${m==="fifo"?"on":""}" data-m="fifo">FIFO</button><button class="${m==="avco"?"on":""}" data-m="avco">AVCO</button></div>
+      <div class="cap"><span class="tx">Bought 10 units at $5, then 10 at $6. Sold 12.</span><span>${m==="fifo"?"FIFO: the <b>first ones in are the first ones out</b>. The 10 cheaper units go first, then 2 of the $6 units.":"AVCO: average cost = ($50 + $60) ÷ 20 = <b>$5.50 per unit</b>."}</span></div>
+      <div class="units">${unitHTML}</div>
+      ${sold?`<div class="ladder">${ladderHTML({rows:[["Cost of sales (12 units)",cos],["= Closing inventory (8 units)",closing]]}).replace('<div class="vis">','').replace(/<\/div>$/,"")}</div><p style="margin:0" class="muted">${m==="fifo"?"8 left × $6 = $48":"8 left × $5.50 = $44"}</p>`:""}
+      <button class="btn sm ${sold?"ghost":""}" data-v="sell" style="align-self:flex-start">${sold?"Put them back":"Sell 12 units"}</button></div>`;
+    $("#visHint").textContent = "Watch the stock";
+    el.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{ st.method=b.dataset.m; mountVisual(t); });
+    el.querySelector("[data-v=sell]").onclick=()=>{ st.sold=!st.sold; mountVisual(t); if(st.sold) finish(); };
+  } else if(kind==="ratios"){
+    el.innerHTML = `<div class="vis">${compareHTML({title:"Current ratio", items:[["Current assets",36000],["Current liabilities",12000]], caption:"36,000 ÷ 12,000 = 3 : 1"})}
+      ${compareHTML({title:"Acid test (take out inventory of 15,000)", items:[["Current assets − inventory",21000],["Current liabilities",12000]], caption:"21,000 ÷ 12,000 = 1.75 : 1"})}
+      <p class="muted" style="margin:0;font-size:13px">The longer the top bar is compared with the bottom one, the easier it is for the business to pay its short-term debts.</p></div>`;
+    $("#visHint").textContent = "Ratios as bars";
+  }
+}
+
+/* =================== FLASHCARDS =================== */
+const CARDS = [
+ ["Asset","Something the business owns or is owed, e.g. cash, equipment, trade receivables."],["Liability","Something the business owes to others, e.g. a bank loan or trade payables."],
+ ["Capital","The owner's investment in the business. Capital = Assets − Liabilities."],["Drawings","Money or goods the owner takes out for personal use."],
+ ["Source document","The original paper or record of a transaction, e.g. an invoice, receipt or credit note."],["Credit note","Sent to a customer when they return goods, to reduce what they owe."],
+ ["Debit note","Sent to a supplier to ask them to reduce what you owe (e.g. after returning goods)."],["Contra entry","An entry on both sides of the cash book, e.g. cash paid into the bank."],
+ ["Imprest system","Petty cash starts each period with a fixed float, topped up by exactly what was spent."],["Trial balance","A list of all ledger balances to check that total debits equal total credits."],
+ ["Suspense account","A temporary account holding the difference when the trial balance doesn't agree."],["Error of principle","Posting to the wrong TYPE of account, e.g. treating a van as an expense."],
+ ["Error of commission","Posting to the wrong account of the right type, e.g. Rent posted to Rates."],["Unpresented cheque","A cheque you've written that the bank hasn't paid out yet."],
+ ["Accrued expense","An expense used this year but not yet paid. Add it to the expense; show it as a current liability."],["Prepaid expense","An expense paid in advance for next year. Subtract it from the expense; show it as a current asset."],
+ ["Depreciation","Spreading the cost of a non-current asset over its useful life."],["Net book value","Cost minus total depreciation to date."],
+ ["Provision for doubtful debts","An estimate of debts that may not be paid, taken off trade receivables."],["Gross profit","Net sales − cost of sales."],
+ ["Net profit","Gross profit + other income − expenses."],["Working capital","Current assets − current liabilities."],
+ ["FIFO","First In, First Out: the oldest stock is sold first, so closing inventory is at the latest prices."],["Appropriation account","Shows how a partnership's net profit is shared between partners."],
+ ["Accumulated fund","The capital of a club or non-profit organisation."],["Subscriptions in arrears","Members' fees still owed to the club at the year end."],
+ ["Prime cost","Direct materials + direct labour + direct expenses."],["Statutory deduction","A pay deduction required by law, e.g. NIS, PAYE, Health Surcharge."],
+ ["Debenture","A long-term loan to a company. Debenture holders get interest, not dividends."],["Statement of affairs","A list of assets and liabilities used to find capital when records are incomplete."],
+];
+let FC = null;
+function viewCards(v){
+  if(!FC){ FC = {deck:shuffle(CARDS), i:0, flip:false, known:0}; }
+  if(FC.i>=FC.deck.length){
+    v.innerHTML = `<button class="back" id="bk">← Practice</button><div class="hero"><div class="ledgerlines"></div><span class="eyebrow" style="color:inherit;opacity:.8">Flashcards</span><div class="big">${FC.known}/${FC.deck.length}</div><h2>terms you knew</h2></div><div class="grid2"><button class="btn" id="fcAgain">Shuffle again</button><button class="btn ghost" id="fcDone">Done</button></div>`;
+    $("#bk").onclick=()=>{FC=null;go("practice");}; $("#fcDone").onclick=()=>{FC=null;go("practice");}; $("#fcAgain").onclick=()=>{FC=null;render();};
+    return;
+  }
+  const c = FC.deck[FC.i];
+  v.innerHTML = `<div class="qtop"><button class="back" id="bk">← Practice</button><span class="eyebrow">${FC.i+1} / ${FC.deck.length}</span></div>
+   <button class="gcard" id="fcCard" style="min-height:220px;width:100%;cursor:pointer"><span class="eyebrow">${FC.flip?"Meaning":"Term · tap to flip"}</span><div class="tx" style="font-size:${FC.flip?"18px":"26px"};font-family:${FC.flip?"var(--f-body)":"var(--f-display)"}">${esc(FC.flip?c[1]:c[0])}</div></button>
+   ${FC.flip?`<div class="grid2"><button class="btn line" id="fcNo">Still learning</button><button class="btn" id="fcYes">I knew it</button></div>`:`<button class="btn ghost block" id="fcFlip">Show the meaning</button>`}`;
+  $("#bk").onclick=()=>{FC=null;go("practice");};
+  const flip=()=>{FC.flip=!FC.flip; render();};
+  $("#fcCard").onclick=flip; if($("#fcFlip")) $("#fcFlip").onclick=flip;
+  const next = k=>{ if(k) FC.known++; FC.i++; FC.flip=false; if(FC.i>=FC.deck.length) addXP(Math.max(5,FC.known), "flashcards"); render(); };
+  if($("#fcYes")) $("#fcYes").onclick=()=>next(true); if($("#fcNo")) $("#fcNo").onclick=()=>next(false);
+}
+
+/* =================== REWARDS =================== */
+const EMPIRE = [
+ {ic:"🫓",n:"Doubles Stand",f:"A sole trader. Every sale is cash, so the cash book is king."},
+ {ic:"🍧",n:"Snow Cone Cart",f:"Tiny business, but still separate from the owner: business entity concept."},
+ {ic:"🌯",n:"Roti Shop",f:"Buys flour and channa on credit, so now there are trade payables."},
+ {ic:"🚐",n:"Maxi Taxi Route",f:"A big non-current asset that needs depreciation every year."},
+ {ic:"🎭",n:"Mas Camp",f:"Costume deposits received early are income received in advance."},
+ {ic:"🔨",n:"Hardware Store",f:"Lots of credit customers, so a sales ledger control account helps."},
+ {ic:"🎣",n:"Fishing Fleet",f:"A partnership of three captains sharing profits in an agreed ratio."},
+ {ic:"🍫",n:"Cocoa Estate",f:"Makes chocolate too, so it needs a manufacturing account."},
+ {ic:"🛒",n:"Supermarket Chain",f:"A limited company now, paying dividends to shareholders."},
+ {ic:"🚢",n:"Shipping Company",f:"Issues debentures to buy a new vessel."},
+ {ic:"🏢",n:"Caribbean Conglomerate",f:"You built an empire from one doubles stand. Chief Accountant material."},
+];
+const SHOP = [
+ {id:"th-ledger",kind:"theme",n:"Ledger Green",p:0,sw:"#0D6A58",d:"The classic look"},
+ {id:"th-maracas",kind:"theme",n:"Maracas Blue",p:250,sw:"#0F6FA8",d:"Sea and sky"},
+ {id:"th-carnival",kind:"theme",n:"Carnival Night",p:300,sw:"#6A2C9E",d:"Purple and gold"},
+ {id:"th-ibis",kind:"theme",n:"Scarlet Ibis",p:300,sw:"#BF3A2B",d:"National bird red"},
+ {id:"th-pan",kind:"theme",n:"Steelpan",p:400,sw:"#3E5566",d:"Cool steel"},
+ {id:"av-coconut",kind:"avatar",n:"Coconut",p:60,ic:"🥥"},{id:"av-hibiscus",kind:"avatar",n:"Hibiscus",p:60,ic:"🌺"},
+ {id:"av-parrot",kind:"avatar",n:"Parrot",p:80,ic:"🦜"},{id:"av-turtle",kind:"avatar",n:"Leatherback",p:80,ic:"🐢"},
+ {id:"av-cricket",kind:"avatar",n:"Cricket",p:100,ic:"🏏"},{id:"av-football",kind:"avatar",n:"Football",p:100,ic:"⚽"},
+ {id:"av-drum",kind:"avatar",n:"Pan drum",p:120,ic:"🥁"},{id:"av-mask",kind:"avatar",n:"Mas mask",p:120,ic:"🎭"},
+ {id:"av-flamingo",kind:"avatar",n:"Flamingo",p:150,ic:"🦩"},{id:"av-crown",kind:"avatar",n:"Chief's crown",p:500,ic:"👑"},
+ {id:"freeze",kind:"power",n:"Streak freeze",p:150,ic:"🧊",d:"Saves your streak if you miss a day (hold up to 2)"},
+ {id:"co-calypso",kind:"coach",n:"Calypso Coach",p:250,ic:"🎤",d:"Coach ends lessons with a little rhyme to remember"},
+ {id:"co-examiner",kind:"coach",n:"Examiner Coach",p:250,ic:"📝",d:"Strict, mark-scheme style feedback"},
+];
+const GOALS = {level:"Reach level", streak:"Day streak of", xp:"Total XP of", mastered:"Topics at 80%+:", paper2:"Paper 02 questions marked:", daily:"Daily challenges done:"};
+function goalNow(type){ return type==="level"?levelOf(S.xp):type==="streak"?S.best:type==="xp"?S.xp:type==="mastered"?Object.values(S.topics).filter(x=>(x.best||0)>=80).length:type==="paper2"?S.n.structured:type==="daily"?S.n.daily:0; }
+function applyTheme(){ document.body.className = S.theme && S.theme!=="th-ledger" ? S.theme : ""; }
+function avatarFace(){ const it = SHOP.find(x=>x.id===S.avatar); return it ? it.ic : (S.name||"?").trim().charAt(0).toUpperCase(); }
+
+function modal(html, onMount){
+  const root=$("#modalRoot"); root.innerHTML = `<div class="modal" role="dialog" aria-modal="true"><div class="box">${html}</div></div>`;
+  const close=()=>{ root.innerHTML=""; runModalQueue(); };
+  root.querySelector(".modal").addEventListener("click", e=>{ if(e.target.classList.contains("modal") && !root.querySelector(".chest")) close(); });
+  onMount && onMount(root, close);
+}
+const modalQueue=[]; function queueModal(fn){ modalQueue.push(fn); if(!$("#modalRoot").innerHTML) runModalQueue(); }
+function runModalQueue(){ const fn = modalQueue.shift(); if(fn) setTimeout(fn, 250); }
+function confetti(){
+  if(window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const c=document.createElement("div"); c.className="confetti";
+  const cols=["#F4C84A","#1F5FC4","#C9620F","#0D6A58","#BF3A2B","#6A2C9E"];
+  c.innerHTML = Array.from({length:50},()=>`<i style="left:${Math.random()*100}%;background:${cols[Math.floor(Math.random()*cols.length)]};animation-delay:${Math.random()*.5}s;animation-duration:${1.4+Math.random()}s"></i>`).join("");
+  document.body.appendChild(c); setTimeout(()=>c.remove(), 3000);
+}
+function showChest(){
+  modal(`<span class="eyebrow">Daily goal reached</span><h2>You earned a treasure chest!</h2><button class="chest" id="chestBtn" aria-label="Open the chest">🎁</button><p class="muted" style="margin:0">Tap to open it.</p>`, (root, close)=>{
+    $("#chestBtn").onclick = ()=>{
+      const lockedAv = SHOP.filter(x=>x.kind==="avatar" && !S.owned[x.id]);
+      const r = Math.random(); let prize;
+      if(r<0.2 && lockedAv.length){ const a=lockedAv[Math.floor(Math.random()*lockedAv.length)]; S.owned[a.id]=1; prize={ic:a.ic, t:`New avatar: ${a.n}!`, s:"Equip it in the Rewards shop."}; }
+      else if(r<0.32 && (S.freezes||0)<2){ S.freezes=(S.freezes||0)+1; prize={ic:"🧊", t:"A streak freeze!", s:"It protects your streak if you miss a day."}; }
+      else { const c = 25 + Math.floor(Math.random()*51); S.coins+=c; prize={ic:"🪙", t:`${c} coins!`, s:"Spend them in the Rewards shop."}; }
+      S.chestDay = today(); save(); renderHeader(); confetti();
+      root.querySelector(".box").innerHTML = `<span class="eyebrow">Chest opened</span><div class="prize">${prize.ic}</div><h2>${esc(prize.t)}</h2><p class="muted" style="margin:0">${esc(prize.s)}</p><button class="btn block" id="mClose">Nice!</button>`;
+      $("#mClose").onclick = close;
+    };
+  });
+}
+function showLevelUp(L){
+  const biz = EMPIRE[Math.min(L-1, EMPIRE.length-1)];
+  confetti();
+  modal(`<span class="eyebrow">Level ${L}</span><h2>Promoted to ${esc(levelName(L))}!</h2><div class="prize">${biz.ic}</div><b>New business unlocked: ${esc(biz.n)}</b><p class="muted" style="margin:0">${esc(biz.f)}</p><span class="price"><span class="coinico">c</span> +50 coins</span><button class="btn block" id="mClose">Keep going</button>`, (r,close)=>{ $("#mClose").onclick=close; });
+}
+function showBadge(b){
+  modal(`<span class="eyebrow">Badge unlocked</span><div class="badge got" style="border:0;background:none"><div class="medal" style="width:70px;height:70px;font-size:22px">${esc(b.m)}</div></div><h2>${esc(b.n)}</h2><p class="muted" style="margin:0">${esc(b.d)}</p><span class="price"><span class="coinico">c</span> +25 coins</span><button class="btn block" id="mClose">Awesome</button>`, (r,close)=>{ $("#mClose").onclick=close; });
+}
+function checkParentGoals(){
+  (S.parent.rewards||[]).forEach(r=>{ if(!r.reached && goalNow(r.type) >= r.target){ r.reached = today(); queueModal(()=>{ confetti(); modal(`<span class="eyebrow">Real-life reward unlocked</span><div class="prize">🏆</div><h2>${esc(r.title)}</h2><p style="margin:0">You hit <b>${esc(GOALS[r.type])} ${r.target}</b>. Show this to your parent to claim it!</p><button class="btn gold block" id="mClose">I'll show them</button>`, (x,close)=>{ $("#mClose").onclick=close; }); }); } });
+}
+
+function viewRewards(v){
+  const L = levelOf(S.xp);
+  const pr = S.parent.rewards||[];
+  const sec = (k,label)=>`<button class="${(S.shopTab||"theme")===k?"on":""}" data-st="${k}">${label}</button>`;
+  const shopItems = SHOP.filter(x=>x.kind===(S.shopTab||"theme"));
+  const isOn = it => it.kind==="theme"?(S.theme||"th-ledger")===it.id : it.kind==="avatar"?S.avatar===it.id : it.kind==="coach"?S.coachStyle===it.id : false;
+  v.innerHTML = `
+  <div class="hero"><div class="ledgerlines"></div>
+    <div class="coinrow"><div class="coinbig">${S.coins>999?"1k+":"¢"}</div><div><span class="eyebrow" style="color:inherit;opacity:.8">Your coins</span><div class="big" style="font-size:36px">${S.coins.toLocaleString()}</div></div></div>
+    <p style="margin:0;opacity:.9">Every XP you earn adds a coin. Hit your daily goal to open a treasure chest. Badges and level-ups pay bonus coins.</p>
+    <div class="stats"><div class="stat"><b>${S.freezes||0}</b><span>streak freezes</span></div><div class="stat"><b>${Math.min(L,EMPIRE.length)}/${EMPIRE.length}</b><span>businesses</span></div><div class="stat"><b>${Object.keys(S.badges).length}</b><span>badges</span></div></div>
+  </div>
+
+  <div class="card"><div class="row" style="justify-content:space-between"><span class="eyebrow">Real-life rewards</span><button class="btn line sm" id="parentBtn">Parent: ${pr.length?"manage":"set rewards"}</button></div>
+    ${pr.length?`<div class="view" style="gap:8px;margin-top:10px">${pr.map(r=>{ const now=Math.min(goalNow(r.type), r.target); const done=goalNow(r.type)>=r.target;
+      return `<div class="rreward ${done&&!r.given?"ready":""}"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b>${done?"🏆":"🎯"} ${esc(r.title)}</b>${r.given?`<span class="mastery good">Received</span>`:done?`<span class="mastery mid">Unlocked!</span>`:""}</div>
+      <span class="muted" style="font-size:13px">${esc(GOALS[r.type])} ${r.target}</span><div class="row" style="flex-wrap:nowrap"><div class="bar" style="flex:1"><i style="width:${Math.round(now/r.target*100)}%;background:var(--gold)"></i></div><span style="font-family:var(--f-mono);font-size:12px">${now}/${r.target}</span></div>
+      ${done&&!r.given?`<span style="font-size:13px"><b>Show this to your parent to claim it.</b></span>`:""}</div>`; }).join("")}</div>`
+    :`<p class="muted" style="margin:8px 0 0">A parent can set real prizes for milestones, like "Reach level 5: KFC lunch" or "30-day streak: new football boots". They're protected with a PIN.</p>`}
+  </div>
+
+  <div class="card"><span class="eyebrow">Shop</span>
+    <div class="seg" style="margin:10px 0">${sec("theme","Themes")}${sec("avatar","Avatars")}${sec("power","Power-ups")}${sec("coach","Coach")}</div>
+    <div class="shop">${shopItems.map(it=>{ const owned = it.p===0 || S.owned[it.id]; const on=isOn(it);
+      return `<div class="item ${on?"owned":""}">${it.sw?`<span class="sw" style="background:${it.sw}"></span>`:`<span class="ic">${it.ic}</span>`}<b>${esc(it.n)}</b>${it.d?`<span>${esc(it.d)}</span>`:""}
+      ${it.kind==="power"?`<span class="price"><span class="coinico">c</span>${it.p} · you have ${S.freezes||0}/2</span><button class="btn sm gold" data-buy="${it.id}" ${(S.freezes||0)>=2||S.coins<it.p?"disabled":""}>Buy</button>`
+       : on?`<button class="btn sm ghost" ${it.kind==="coach"?`data-off="${it.id}"`:"disabled"}>${it.kind==="coach"?"On · turn off":"Equipped"}</button>`
+       : owned?`<button class="btn sm" data-use="${it.id}">Use</button>`
+       :`<span class="price"><span class="coinico">c</span>${it.p}</span><button class="btn sm gold" data-buy="${it.id}" ${S.coins<it.p?"disabled":""}>Buy</button>`}</div>`; }).join("")}</div>
+  </div>
+
+  <div class="card"><span class="eyebrow">Your business empire</span><p class="muted" style="margin:4px 0 10px;font-size:14px">Each level unlocks a new Caribbean business, from a doubles stand to a conglomerate.</p>
+    <div class="empire">${EMPIRE.map((b,i)=>`<div class="biz ${i<L?"on":"off"}"><span class="ic">${b.ic}</span><b>${i<L?esc(b.n):"Level "+(i+1)}</b><span>${i<L?esc(b.f):"Locked"}</span></div>`).join("")}</div>
+  </div>
+
+  <div class="card"><span class="eyebrow">Badges · ${Object.keys(S.badges).length}/${BADGES.length}</span><div class="badges" style="margin-top:10px">
+    ${BADGES.map(b=>`<div class="badge ${S.badges[b.id]?"got":""}"><div class="medal">${esc(b.m)}</div><b>${esc(b.n)}</b><span>${esc(b.d)}</span></div>`).join("")}</div></div>
+  <button class="btn line block" id="toMe">My progress, mistakes and settings</button>`;
+  $("#toMe").onclick = ()=>go("me");
+  $("#parentBtn").onclick = ()=>parentGate();
+  v.querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>{ S.shopTab=b.dataset.st; save(); render(); });
+  v.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>{ const it=SHOP.find(x=>x.id===b.dataset.buy); if(S.coins<it.p) return;
+    S.coins-=it.p; if(it.kind==="power"){ S.freezes=(S.freezes||0)+1; toast("Streak freeze ready"); } else { S.owned[it.id]=1; useItem(it); toast(`${it.n} unlocked!`, true); confetti(); } save(); render(); });
+  v.querySelectorAll("[data-use]").forEach(b=>b.onclick=()=>{ useItem(SHOP.find(x=>x.id===b.dataset.use)); save(); render(); });
+  v.querySelectorAll("[data-off]").forEach(b=>b.onclick=()=>{ S.coachStyle=null; save(); render(); });
+}
+function useItem(it){ if(it.kind==="theme"){ S.theme=it.id; applyTheme(); } else if(it.kind==="avatar") S.avatar=it.id; else if(it.kind==="coach") S.coachStyle=it.id; renderHeader(); }
+
+/* ---- parent area ---- */
+let parentOK = false;
+function parentGate(){
+  if(parentOK) return parentEditor();
+  const setting = !S.parent.pin; let entry="", first=null;
+  const draw = (msg)=>{
+    $("#modalRoot .box").innerHTML = `<span class="eyebrow">Parents only</span><h2>${setting?(first===null?"Create a 4-digit PIN":"Enter the PIN again"):"Enter your PIN"}</h2>
+      <p class="muted" style="margin:0;font-size:14px">${msg||(setting?"Your child won't be able to change rewards without it.":"")}</p>
+      <div class="pindots">${[0,1,2,3].map(i=>`<i class="${i<entry.length?"on":""}"></i>`).join("")}</div>
+      <div class="pinpad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-k="${n}">${n}</button>`).join("")}<button data-k="x" aria-label="Cancel">✕</button><button data-k="0">0</button><button data-k="b" aria-label="Delete">⌫</button></div>`;
+    $("#modalRoot .box").querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>press(b.dataset.k));
+  };
+  const press = k => {
+    if(k==="x"){ $("#modalRoot").innerHTML=""; return; }
+    if(k==="b"){ entry=entry.slice(0,-1); return draw(); }
+    if(entry.length<4) entry+=k;
+    if(entry.length<4) return draw();
+    if(setting){
+      if(first===null){ first=entry; entry=""; return draw(); }
+      if(first!==entry){ first=null; entry=""; return draw("The PINs didn't match. Try again."); }
+      S.parent.pin = String(hashStr("ledgerup:"+entry)); save(); parentOK=true; $("#modalRoot").innerHTML=""; return parentEditor();
+    }
+    if(String(hashStr("ledgerup:"+entry))===S.parent.pin){ parentOK=true; $("#modalRoot").innerHTML=""; return parentEditor(); }
+    entry=""; draw("That PIN isn't right.");
+  };
+  modal("", ()=>draw());
+}
+function parentEditor(){
+  go("parent");
+}
+function viewParent(v){
+  if(!parentOK) return go("rewards");
+  const pr = S.parent.rewards ||= [];
+  v.innerHTML = `<button class="back" id="bk">← Rewards</button>
+  <div><h2 style="font-size:24px">Real-life rewards</h2><p class="muted" style="margin:4px 0 0">Set prizes your child unlocks by studying. They'll see the progress bar, and the app celebrates when they get there.</p></div>
+  <div class="card"><form id="rf" class="view" style="gap:10px">
+    <div><label class="lab" for="rt">Reward</label><input class="field" id="rt" maxlength="60" placeholder="e.g. Movie at MovieTowne" required></div>
+    <div class="grid2"><div><label class="lab" for="rty">Milestone</label><select class="field" id="rty">${Object.entries(GOALS).map(([k,l])=>`<option value="${k}">${esc(l.replace(/ of$|:$/,""))}</option>`).join("")}</select></div>
+    <div><label class="lab" for="rn2">Target</label><input class="field" id="rn2" type="number" min="1" max="100000" value="5" required></div></div>
+    <p class="muted" style="margin:0;font-size:13px" id="rnow"></p>
+    <button class="btn gold" type="submit">Add reward</button></form></div>
+  <div class="card"><span class="eyebrow">Current rewards</span>${pr.length?`<div class="view" style="gap:8px;margin-top:8px">${pr.map((r,i)=>{ const done=goalNow(r.type)>=r.target; return `<div class="rreward ${done&&!r.given?"ready":""}"><b>${esc(r.title)}</b><span class="muted" style="font-size:13px">${esc(GOALS[r.type])} ${r.target} · now ${goalNow(r.type)}${done?" · UNLOCKED":""}</span>
+    <div class="row">${done&&!r.given?`<button class="btn sm" data-given="${i}">Mark as given</button>`:""}${r.given?`<span class="mastery good">Given ${esc(r.given)}</span>`:""}<button class="btn line sm" data-del="${i}">Remove</button></div></div>`; }).join("")}</div>`:`<p class="muted" style="margin:6px 0 0">No rewards yet.</p>`}</div>
+  <div class="card"><span class="eyebrow">Ideas</span><p style="margin:6px 0 0;font-size:14px">Small and often works best: a treat for a 7-day streak, something bigger for level 5, a special outing for 10 topics at 80%+. Current level: ${levelOf(S.xp)} · best streak: ${S.best} · XP: ${S.xp}.</p></div>
+  <button class="btn line" id="lock">Lock parent area</button>`;
+  const showNow=()=>{ $("#rnow").textContent = `Right now: ${goalNow($("#rty").value)}`; }; $("#rty").onchange=showNow; showNow();
+  $("#bk").onclick=()=>go("rewards"); $("#lock").onclick=()=>{ parentOK=false; go("rewards"); };
+  $("#rf").onsubmit = e=>{ e.preventDefault(); const title=$("#rt").value.trim(), type=$("#rty").value, target=Math.max(1,parseInt($("#rn2").value,10)||1); if(!title) return;
+    pr.push({title,type,target,reached: goalNow(type)>=target?today():null, given:null}); save(); toast("Reward added"); render(); };
+  v.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ pr.splice(+b.dataset.del,1); save(); render(); });
+  v.querySelectorAll("[data-given]").forEach(b=>b.onclick=()=>{ pr[+b.dataset.given].given=today(); save(); render(); });
+}
+
+/* =================== BOOT =================== */
+let installEvt = null;
+window.addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); installEvt = e; if(tab==="home") render(); });
+applyTheme();
+if(COACH_MODE){
+  const h = location.hash.slice(1);
+  if(h==="paper2") tab="practice"; else if(TOPIC[h]){ chatTopic=h; tab="tutor"; } else tab="tutor";
+  window.addEventListener("hashchange", ()=>{ const k=location.hash.slice(1); if(TOPIC[k]){ chatTopic=k; go("tutor"); } else if(k==="paper2") go("practice"); });
+} else { window.addEventListener("hashchange", handleClaim); }
+render();
+handleClaim();
+initAI();
+initCloud();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+}
+</script>
+</body>
+</html>
