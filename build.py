@@ -3,7 +3,7 @@
 
 Usage: python3 build.py
 Reads src/ledger-up.html and writes the installable offline site to docs/
-(served by GitHub Pages at https://poa.tidyassistant.com). The cache version
+(served at https://poa.tidyassistant.com by the ledger-up Cloudflare Worker). The cache version
 is a hash of the page, so every build makes phones fetch the new version.
 """
 import base64, hashlib, json, pathlib
@@ -83,6 +83,5 @@ page = HEAD + SRC + TAIL
 (OUT / "sw.js").write_text(SW)
 (OUT / "manifest.webmanifest").write_text(json.dumps(MANIFEST, indent=1))
 
-(OUT / "CNAME").write_text("poa.tidyassistant.com\n")
 (OUT / ".nojekyll").write_text("")
 print("built", VERSION)

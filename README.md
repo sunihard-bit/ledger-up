@@ -18,5 +18,5 @@ A CSEC Principles of Accounts study app (exam: May/June 2028).
 
 1. Edit `src/ledger-up.html`.
 2. Run `python3 build.py` (writes `docs/`).
-3. Commit and push to `main`. GitHub Pages republishes `docs/` in about a minute.
+3. Commit and push to `main`. A Cloudflare Worker (`ledger-up`, on Sunil's Cloudflare account) serves `docs/` from this public repo at poa.tidyassistant.com, so changes are live within a few minutes.
 4. Republish the Coach artifact from the same `src/ledger-up.html` (Claude's Artifact tool, same URL).
