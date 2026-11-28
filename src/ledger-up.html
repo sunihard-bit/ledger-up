@@ -539,7 +539,7 @@ async function initCloud(){
    collections are combined, settings take the newer change. */
 const SYNC_KEY = "ledgerup.sync.v1", SYNC_API = "/api/sync/";
 const SYNC_ABC = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-const SYNC_LOCAL = ["role","shopTab","filter","hideInstall","kid","pRewards","kidName","pendXP","pendBase","claimId"];
+const SYNC_LOCAL = ["role","shopTab","filter","hideInstall","kid","pRewards","kidName","pendXP","pendBase","claimId","watch"];
 const SYNC_ADD = ["xp","coins","freezes"], SYNC_MAX = ["best"], SYNC_UNION = ["badges","owned","claimed","lessonDay"];
 let SY = null; try{ SY = JSON.parse(localStorage.getItem(SYNC_KEY)||"null"); }catch(e){}
 let syncBusy = false, syncAgain = false, syncT = null, syncErr = false;
@@ -922,7 +922,7 @@ function viewWelcome(v){
     <button class="btn block" type="submit">Start studying</button>
   </form></div>
   ${syncOK()?`<div class="card"><span class="eyebrow">Already using Ledger Up?</span><p style="margin:6px 0 0;font-size:14px">On your other device, tap your picture at the top left, turn on <b>Sync</b>, and enter the code here to bring your progress across.</p>${syncJoinHTML("wJoin")}</div>`:""}
-  ${STANDALONE?`<div class="card"><span class="eyebrow">Parents</span><p style="margin:6px 0 10px">Setting up real-life rewards from your own phone?</p><button class="btn line block" id="asParent">I'm a parent</button></div>`:""}`;
+  ${STANDALONE?`<div class="card"><span class="eyebrow">Parents</span><p style="margin:6px 0 10px">Want to follow your child's progress or set real-life rewards from your own phone?</p><button class="btn line block" id="asParent">I'm a parent</button></div>`:""}`;
   if($("#asParent")) $("#asParent").onclick = ()=>{ S.role="parent"; S.name="Parent"; save(); go("parenthome"); };
   bindSyncJoin("wJoin");
   $("#wf").onsubmit = e => { e.preventDefault(); const n=$("#nm").value.trim(); if(!n) return; S.name=n; save(); go("home"); };
@@ -1489,8 +1489,15 @@ function viewMe(v){
       <div><label class="lab" for="rn">Name</label><div class="row" style="flex-wrap:nowrap"><input class="field" id="rn" value="${esc(S.name)}" maxlength="30"><button class="btn sm" id="rnSave">Save</button></div></div>
       <p class="muted" style="margin:0;font-size:14px">${STANDALONE?"Progress is saved on this device. Turn on Sync above to keep it the same on your other devices.":"Progress is saved to your Claude account when you're signed in, and on this device."} Exam countdown: May/June 2028.</p>
       <div id="resetZone"><button class="btn line sm" id="rst">Reset all progress</button></div>
+      ${STANDALONE?`<div id="toParentZ"><button class="btn ghost sm" id="toParent">I'm a parent: use this phone to follow my child</button></div>`:""}
     </div></div>`;
   renderSyncCard();
+  if($("#toParent")) $("#toParent").onclick = ()=>{ $("#toParentZ").innerHTML = `<p style="margin:0 0 8px"><b>Switch this phone to parent view?</b> ${SY?`It will stop studying here and follow ${esc(S.name)}'s progress (view only). ${esc(S.name)}'s progress stays safe on their own phone.`:"You can switch back to student mode later in parent settings."}</p><div class="row"><button class="btn sm" id="tpY">Yes, switch</button><button class="btn line sm" id="tpN">Cancel</button></div>`;
+    $("#tpN").onclick=()=>render();
+    $("#tpY").onclick=async ()=>{ $("#tpY").disabled=true;
+      if(SY){ await syncNow(); const id=SY.id, kn=S.name, pr=S.pRewards; SY=null; sySave(); S=Object.assign(DEF(), {role:"parent", name:"Parent", kidName:kn, pRewards:pr||[], watch:{id, at:0}}); watchTry=0; }
+      else { S.role="parent"; S.name="Parent"; }
+      save(); go("parenthome"); }; };
   $("#rnSave").onclick=()=>{ const n=$("#rn").value.trim(); if(n){ S.name=n; save(); toast("Name saved"); render(); } };
   $("#rst").onclick=()=>{ $("#resetZone").innerHTML = `<p style="margin:0 0 8px"><b>Delete all XP, streaks, badges and mistakes?</b> This can't be undone.</p><div class="row"><button class="btn red sm" id="rstY">Yes, reset</button><button class="btn line sm" id="rstN">Cancel</button></div>`;
     $("#rstY").onclick=()=>{ const n=S.name; S=DEF(); S.name=n; if(SY){ SY=null; sySave(); } save(); toast("Progress reset"); go("home"); }; $("#rstN").onclick=()=>render(); };
@@ -1962,26 +1969,92 @@ function handleProgressLink(){
   if(S.role!=="parent"){ toast("That's a progress link for a parent's phone."); return; }
   S.kid = d; S.kidName = d.n || S.kidName; save(); go("parenthome"); toast(`${d.n||"Your child"}'s progress updated`, true);
 }
+/* Parent's phone: follow the child's progress live with their sync code.
+   View only: it reads the synced copy and never writes back, so nothing the parent does here counts as the child's. */
+const watchOK = () => STANDALONE && /^https:$/.test(location.protocol) && !!(window.crypto && crypto.subtle);
+let watchBusy = false, watchErr = false, watchTry = 0;
+function kidSummary(K){
+  const me = S;
+  S = Object.assign(DEF(), JSON.parse(JSON.stringify(K)));
+  S.n = Object.assign(DEF().n, S.n||{}); S.parent = Object.assign({pin:null,rewards:[]}, S.parent||{});
+  try{
+    const p = progressPayload();
+    const wk = new Date(); wk.setDate(wk.getDate()-6); const wkS = dstr(wk);
+    Object.assign(p, {live:1, last:S.last, td:S.days[today()]||0, coins:S.coins,
+      w14:[...Array(14)].map((_,k)=>{ const d=new Date(); d.setDate(d.getDate()-(13-k)); return S.days[dstr(d)]||0; }),
+      mk:(S.mistakes||[]).filter(m=>String(m.d||"")>=wkS).length,
+      sec:SECTIONS.map(sc=>{ const ts=TOPICS.filter(t=>t.sec===sc.id), tried=ts.filter(t=>S.topics[t.id]?.attempts);
+        return {n:sc.name, all:ts.length, tried:tried.length, avg:tried.length?Math.round(tried.reduce((a,t)=>a+(S.topics[t.id].best||0),0)/tried.length):null}; }),
+      tps:TOPICS.filter(t=>S.topics[t.id]?.attempts).map(t=>[t.name, S.topics[t.id].best||0])});
+    return p;
+  } finally { S = me; }
+}
+async function watchFetch(id){
+  const r = await fetch(SYNC_API+id, {cache:"no-store"}).then(x => { if(!x.ok) throw 0; return x.json(); });
+  return r.data ? JSON.parse(r.data) : null;
+}
+async function watchNow(manual){
+  if(S.role!=="parent" || !S.watch || watchBusy || !watchOK()) return false;
+  if(!navigator.onLine){ if(manual) toast("You're offline. Showing the last update."); return false; }
+  watchBusy = true; watchTry = Date.now(); let ok = false;
+  try{ const K = await watchFetch(S.watch.id); if(K){ S.kid = kidSummary(K); if(K.name) S.kidName = K.name; S.watch.at = Date.now(); save(); ok = true; } }catch(e){}
+  watchBusy = false; watchErr = !ok;
+  if(manual) toast(ok ? "Up to date" : "Couldn't update. Check your internet and try again.", ok);
+  const a = document.activeElement; if(tab==="parenthome" && !(a && /INPUT|SELECT|TEXTAREA/.test(a.tagName) && a.value)) render();
+  return ok;
+}
+async function watchConnect(raw){
+  const code = normCode(raw);
+  if(code.length !== 12){ toast("A sync code has 12 letters and numbers, like ABCD-EFGH-JKMN."); return false; }
+  let K; const id = await codeId(code);
+  try{ K = await watchFetch(id); }catch(e){ toast("Couldn't connect. Check your internet and try again."); return false; }
+  if(!K){ toast("No progress found for that code. Check it and try again."); return false; }
+  S.watch = {id, at:Date.now()}; S.kid = kidSummary(K); if(K.name) S.kidName = K.name; watchErr = false; save();
+  toast(`Connected. You're now following ${S.kidName||"your child"}'s progress.`, true); render();
+  return true;
+}
+function agoDay(d){ const g = gapDays(d); return !d || g>900 ? "not yet" : g<=0 ? "today" : g===1 ? "yesterday" : g+" days ago"; }
+function kidStatsHTML(kid){
+  const bars = (arr, h) => `<div style="display:grid;grid-template-columns:repeat(${arr.length},1fr);gap:${arr.length>7?4:6}px;align-items:end;height:${h+10}px;margin-top:12px">${arr.map(x=>`<div style="height:${Math.max(4,Math.round(x/Math.max(DAILY_GOAL,...arr)*h))}px;border-radius:4px;background:${x>=DAILY_GOAL?"var(--green)":x?"var(--gold)":"var(--line)"}"></div>`).join("")}</div>`;
+  return `${kid.live?`<p style="margin:6px 0 10px;font-size:15px">Last studied: <b>${esc(agoDay(kid.last))}</b> · Today: <b>${kid.td} of ${DAILY_GOAL} XP</b>${kid.td>=DAILY_GOAL?" ✅":""}</p>`:""}
+    <div class="stats" style="grid-template-columns:repeat(3,1fr)">
+      ${[["Level",kid.l],["Day streak",kid.s],["Best streak",kid.b],["Total XP",kid.x],["Topics 80%+",kid.m],["Quizzes",kid.q]].map(([a,b])=>`<div class="stat" style="background:var(--bg)"><b>${esc(String(b??0))}</b><span>${a}</span></div>`).join("")}
+    </div>
+    ${bars(kid.w14||kid.w||[], 60)}
+    <span class="muted" style="font-size:12px">XP each day, last ${kid.w14?14:7} days (green = daily goal of ${DAILY_GOAL} met)</span>
+    ${kid.weak?.length?`<p style="margin:10px 0 0;font-size:14px"><b>Needs practice:</b> ${esc(kid.weak.join(", "))}</p>`:""}
+    ${kid.live?`<p style="margin:8px 0 0;font-size:14px">This week: <b>${kid.mk}</b> mistake${kid.mk===1?"":"s"} to learn from · Paper 02 questions marked: <b>${kid.p2||0}</b> · Badges: <b>${kid.bd||0}</b></p>
+    <div style="margin-top:14px;border-top:1px dashed var(--line);padding-top:12px"><span class="eyebrow">Topics</span>
+      <p class="muted" style="margin:4px 0 8px;font-size:13px">${kid.tp} of ${TOPICS.length} topics tried. The bar shows the average best quiz score.</p>
+      <div class="view" style="gap:8px">${(kid.sec||[]).map(sc=>`<div><div class="row" style="justify-content:space-between;flex-wrap:nowrap;font-size:14px"><span>${esc(sc.n)}</span><span class="mastery ${sc.avg===null?"":sc.avg>=80?"good":sc.avg>=50?"mid":"low"}">${sc.tried}/${sc.all}${sc.avg===null?"":" · "+sc.avg+"%"}</span></div><div class="bar"><i style="width:${sc.avg||0}%"></i></div></div>`).join("")}</div>
+      ${kid.tps?.length?`<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:600;font-size:14px">See every topic tried</summary><div class="view" style="gap:4px;margin-top:8px">${kid.tps.map(([n,b])=>`<div class="row" style="justify-content:space-between;flex-wrap:nowrap;font-size:14px"><span>${esc(n)}</span><span class="mastery ${b>=80?"good":b>=50?"mid":"low"}">${b}%</span></div>`).join("")}</div></details>`:""}
+    </div>`:""}`;
+}
 function viewParentHome(v){
   const kid = S.kid, kn = S.kidName || "your child";
   const pr = S.pRewards ||= [];
   const now = r => kid?.r?.find(x=>x.t===r.title && x.ty===r.type && x.g===r.target)?.now ?? null;
   const kidNow = type => !kid ? null : type==="level"?kid.l:type==="streak"?kid.b:type==="xp"?kid.x:type==="mastered"?kid.m:type==="paper2"?kid.p2:type==="daily"?kid.d:null;
   v.innerHTML = `
-  <div class="hero"><div class="ledgerlines"></div><span class="eyebrow" style="color:inherit;opacity:.8">Parent mode</span><h2>${esc(kn)}'s rewards</h2>
-    <p style="margin:0">Set real-life prizes here, then send them to ${esc(kn)}'s phone. Ask ${esc(kn)} to send you a progress link any time to see how they're doing.</p></div>
+  <div class="hero"><div class="ledgerlines"></div><span class="eyebrow" style="color:inherit;opacity:.8">Parent mode</span><h2>${esc(kn)}'s progress</h2>
+    <p style="margin:0">See how ${esc(kn)} is doing, and set real-life prizes to send to their phone.</p></div>
 
-  <div class="card"><span class="eyebrow">Latest progress</span>
-   ${kid?`<p class="muted" style="margin:4px 0 8px;font-size:13px">Sent on ${esc(kid.at)}</p>
-    <div class="stats" style="grid-template-columns:repeat(3,1fr)">
-      ${[["Level",kid.l],["Day streak",kid.s],["Best streak",kid.b],["Total XP",kid.x],["Topics 80%+",kid.m],["Quizzes",kid.q]].map(([a,b])=>`<div class="stat" style="background:var(--bg)"><b>${esc(String(b))}</b><span>${a}</span></div>`).join("")}
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end;height:70px;margin-top:12px">${(kid.w||[]).map(x=>`<div style="height:${Math.max(4,Math.round(x/Math.max(DAILY_GOAL,...kid.w)*60))}px;border-radius:4px;background:${x>=DAILY_GOAL?"var(--green)":x?"var(--gold)":"var(--line)"}"></div>`).join("")}</div>
-    <span class="muted" style="font-size:12px">XP over the last 7 days (green = daily goal met)</span>
-    ${kid.weak?.length?`<p style="margin:10px 0 0;font-size:14px"><b>Needs practice:</b> ${esc(kid.weak.join(", "))}</p>`:""}`
-   :`<p class="muted" style="margin:6px 0 0">Nothing yet. On ${esc(kn)}'s phone: Rewards, then <b>Send my progress to my parent</b>. When you open that link here, the progress shows up.</p>`}
-   ${pasteBox("pasteProg","Got a progress link? Paste it here")}
-  </div>
+  ${S.watch?`<div class="card"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><span class="eyebrow">Live progress</span><button class="btn line sm" id="wRef">Refresh</button></div>
+    <p class="muted" style="margin:4px 0 0;font-size:13px">${watchErr?`<span style="color:var(--red)">Couldn't update just now.</span> `:""}Updated ${S.watch.at?esc(new Date(S.watch.at).toLocaleString([], {weekday:"short", hour:"numeric", minute:"2-digit"})):"not yet"}. View only: nothing you do here changes ${esc(kn)}'s progress.</p>
+    ${kid?kidStatsHTML(kid):""}
+    <p class="muted" style="margin:12px 0 0;font-size:13px">Progress shows up here after ${esc(kn)}'s phone syncs, usually within a minute of studying while online.</p>
+    <div id="wStopZ" style="margin-top:10px"><button class="btn ghost sm" id="wStop">Stop following on this phone</button></div>
+  </div>`
+  :`<div class="card"><span class="eyebrow">Follow ${esc(kn)}'s progress live</span>
+    ${watchOK()?`<p style="margin:6px 0 4px;font-size:14px">Enter ${esc(kn)}'s <b>sync code</b> to see their progress here any time, without asking for a link. It's view only, so nothing you do here counts as their study.</p>
+    <p class="muted" style="margin:0;font-size:13px">To find the code: on ${esc(kn)}'s phone, tap their picture at the top left, then look under <b>Sync</b>. If sync isn't on yet, tap <b>Turn on sync</b> there first.</p>
+    <div style="margin-top:10px"><label class="lab" for="wCode">${esc(kn)}'s sync code</label><div class="row" style="flex-wrap:nowrap"><input class="field" id="wCode" placeholder="ABCD-EFGH-JKMN" autocomplete="off" autocapitalize="characters" spellcheck="false" style="font-family:var(--f-mono)"><button class="btn sm" id="wGo">Connect</button></div></div>`
+    :`<p class="muted" style="margin:6px 0 0;font-size:14px">Open Ledger Up at poa.tidyassistant.com to follow progress with a sync code.</p>`}
+    <details style="margin-top:12px"${kid&&!watchOK()?" open":""}><summary style="cursor:pointer;font-weight:600;font-size:14px">${kid?`Last progress link (sent ${esc(kid.at)})`:"No sync code? Use a progress link instead"}</summary>
+     ${kid?kidStatsHTML(kid):`<p class="muted" style="margin:6px 0 0;font-size:14px">On ${esc(kn)}'s phone: Rewards, then <b>Send my progress to my parent</b>. When you open that link here, the progress shows up.</p>`}
+     ${pasteBox("pasteProg","Got a progress link? Paste it here")}
+    </details>
+  </div>`}
 
   <div class="card"><span class="eyebrow">Rewards</span>
    ${pr.length?`<div class="view" style="gap:8px;margin-top:8px">${pr.map((r,i)=>{ const n=kidNow(r.type); const done = n!==null && n>=r.target;
@@ -2003,6 +2076,11 @@ function viewParentHome(v){
     <div><label class="lab" for="pkn">Child's name</label><div class="row" style="flex-wrap:nowrap"><input class="field" id="pkn" value="${esc(S.kidName||"")}" maxlength="30"><button class="btn sm" id="pknS">Save</button></div></div>
     <div id="pSwitch"><button class="btn line sm" id="pStudent">Switch this phone to student mode</button></div></div></div>`;
   bindPaste("pasteProg");
+  if($("#wGo")) $("#wGo").onclick = async ()=>{ const b=$("#wGo"); b.disabled=true; b.textContent="…"; const ok = await watchConnect($("#wCode").value); if(!ok && $("#wGo")){ b.disabled=false; b.textContent="Connect"; } };
+  if($("#wRef")) $("#wRef").onclick = ()=>{ $("#wRef").disabled=true; watchNow(true); };
+  if($("#wStop")) $("#wStop").onclick = ()=>{ $("#wStopZ").innerHTML = `<b style="font-size:14px">Stop following here?</b> ${esc(kn)}'s progress isn't affected. <button class="btn red sm" id="wsY">Yes</button> <button class="btn line sm" id="wsN">Cancel</button>`;
+    $("#wsY").onclick = ()=>{ S.watch=null; S.kid=null; save(); render(); }; $("#wsN").onclick = ()=>render(); };
+  if(S.watch && !watchBusy && Date.now()-watchTry > 60000 && Date.now()-(S.watch.at||0) > 60000) setTimeout(()=>watchNow(), 50);
   $("#prf").onsubmit = e=>{ e.preventDefault(); const title=$("#prt").value.trim(); if(!title) return; pr.push({title, type:$("#prty").value, target:Math.max(1,parseInt($("#prn").value,10)||1), given:null}); save(); toast("Added. Remember to send it."); render(); };
   v.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ pr.splice(+b.dataset.del,1); save(); render(); });
   v.querySelectorAll("[data-given]").forEach(b=>b.onclick=()=>{ pr[+b.dataset.given].given=today(); save(); render(); });
@@ -2028,8 +2106,8 @@ handleClaim(); handleRewardsLink(); handleProgressLink();
 initAI();
 initCloud();
 if(STANDALONE){
-  syncNow();
-  document.addEventListener("visibilitychange", ()=>syncNow());
-  window.addEventListener("online", ()=>syncNow());
+  syncNow(); watchNow();
+  document.addEventListener("visibilitychange", ()=>{ syncNow(); if(document.visibilityState==="visible") watchNow(); });
+  window.addEventListener("online", ()=>{ syncNow(); watchNow(); });
 }
 </script>
